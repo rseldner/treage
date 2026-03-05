@@ -3,7 +3,7 @@
 **[→ Live Demo](https://rseldner.github.io/treage/)**
 
 A lightweight framework for building interactive decision trees.
-Just a JS file, your config/html, and a browser.
+Just a JS file (local or from cdn), your config/html, and a browser.
 
 ![](tree.gif)
 
@@ -20,22 +20,20 @@ The engine handles everything else (layout, rendering, zoom/pan, light/dark them
 Both views are driven by the same data:
 
 - **Full Tree view** - zoomable/pannable D3 diagram of the whole tree. Good for reviewing the full logic.
-- **Interactive view**  a one-question-at-a-time flow with breadcrumb navigation, progress indicators, and a styled outcome card at the end. Good for actually stepping through the workflow.
+- **Interactive view** - a one-question-at-a-time flow with breadcrumb navigation, progress indicators, and a styled outcome card at the end. Good for actually stepping through the workflow.
 
 ---
 
 ## Getting started
 
-Grab `treage.js` and one of the examples as a starting point:
+Grab one of the examples as a starting point:
 
 ```
 examples/starter.html      - minimal working tree to get started
 examples/boilerplate.html  - example with every feature documented with comments
 ```
 
-The starter is the right place to begin. The boilerplate is the reference when you need to do something specific.
-
-Your file ends up looking like this:
+If jsdelivr cdn is accessible, nothing else is needed.  The engine is already defined in the examples...
 
 ```html
 <!DOCTYPE html>
@@ -48,11 +46,21 @@ Your file ends up looking like this:
     const CONFIG = { ... };
     const TREE   = { ... };
   </script>
-  <script src="treage.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"></script>
 </head>
 <body></body>
 </html>
 ```
+
+Otherwise, if using a local copy, swap the CDN line for a local copy if you prefer:
+
+```html
+<script src="treage.js"></script>
+```
+
+
+Then start customizing the `CONFIG` and `TREE` objects
+
 
 ---
 
@@ -94,7 +102,7 @@ Both `palette` and `paletteLight` use the same keys:
 
 ### Node types
 
-Two keys are reserved(don't rename them):
+Two keys are reserved (don't rename them):
 
 - **`start`** - the root node. One per tree.
 - **`question`** - all branching nodes. Used automatically.
@@ -124,7 +132,7 @@ The actual content. Two fields are worth knowing upfront.  everything else is in
   eyebrow:   "Question 1",  // small label above the title
   isNew:     true,          // optional - yellow NEW badge
   title:     "The question or outcome text.",
-  hint:       "Optional italic subtext or gate condition.",
+  hint:      "Optional italic subtext or gate condition.",
   edgeLabel: "YES",         // label on the edge from parent to this node
   children:  [ ... ]        // nested children; omit or [] for outcomes
 }
@@ -147,17 +155,8 @@ Non-binary branching works fine - give a question three or four children with la
 
 The split between engine and config means upgrading is just a file swap:
 
-```
-Replace treage.js with the new version. Your CONFIG and TREE are untouched.
-```
-
-Or pin to a specific release via jsDelivr.  No local file needed:
-
-```html
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"></script>
-```
-
-Change the version tag to upgrade. That's it.
+- if using a local `treage.js` file, simply swap it with the newer version.
+- if using tagged version on jsDelivr, simply update the version tag.
 
 ---
 
