@@ -11,7 +11,7 @@ Just a JS file, your config/html, and a browser.
 
 ## How it works
 
-You write two things: 
+You write two things into the html file: 
 - a `CONFIG` object (colors, fonts, outcome types) 
 - a `TREE` object (your actual questions and outcomes). 
 
