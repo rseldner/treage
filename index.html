@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Decision Tree</title>
+
+<!-- ① D3 (required by the engine) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<!-- ② Your CONFIG and TREE — the ONLY things you ever edit -->
+<script>
+
+/* ══════════════════════════════════════════════════════════════════
+   CONFIG
+   ══════════════════════════════════════════════════════════════════
+
+   META
+   ──────────────────────────────────────────────────────────────────
+   title         Page title shown in the header
+   subtitle      Smaller descriptor line in the header
+   icon          SVG string for the header icon. Use "" to omit.
+
+   PALETTES  (provide both dark and light)
+   ──────────────────────────────────────────────────────────────────
+   bg            Canvas / page background
+   surface       Card and control backgrounds
+   border        Default border color
+   text          Primary text color
+   muted         Secondary / subdued text
+   dim           Eyebrow labels, placeholders
+   accent        Brand accent color
+   edgeYes       Color for YES edges / buttons
+   edgeNo        Color for NO  edges / buttons
+   edgeDefault   Color for unlabelled edges
+   gridLine      Grid overlay color (rgba recommended)
+   headerBg      Header/footer background
+
+   FONTS
+   ──────────────────────────────────────────────────────────────────
+   body / mono   CSS font-family strings
+
+   NODE TYPES
+   ──────────────────────────────────────────────────────────────────
+   Add / remove outcome types freely.
+   Each type needs: label, legendLabel, accent, dark{}, light{}
+   Reserved (keep): "start", "question"
+   ════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+
+  title:    "My Decision Tree",
+  subtitle: "Answer each question to reach a recommendation.",
+  icon: `<svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+    <circle cx="20" cy="20" r="19" stroke="#00bfb3" stroke-width="1.5"/>
+    <circle cx="20" cy="10" r="3" fill="#00bfb3"/>
+    <circle cx="11" cy="28" r="3" fill="#00bfb3"/>
+    <circle cx="29" cy="28" r="3" fill="#00bfb3"/>
+    <line x1="20" y1="13" x2="20" y2="20" stroke="#00bfb3" stroke-width="1.5"/>
+    <line x1="20" y1="20" x2="11" y2="25" stroke="#00bfb3" stroke-width="1.5"/>
+    <line x1="20" y1="20" x2="29" y2="25" stroke="#00bfb3" stroke-width="1.5"/>
+    <circle cx="20" cy="20" r="2.5" fill="#00bfb3"/>
+  </svg>`,
+
+  palette: {
+    bg:          "#0d0f14",
+    surface:     "#13161e",
+    border:      "#252a38",
+    text:        "#e8eaf0",
+    muted:       "#7a8099",
+    dim:         "#4a5068",
+    accent:      "#00bfb3",
+    edgeYes:     "#3dd68c",
+    edgeNo:      "#ff6b6b",
+    edgeDefault: "#3a4158",
+    gridLine:    "rgba(255,255,255,0.018)",
+    headerBg:    "rgba(13,15,20,0.95)",
+  },
+
+  paletteLight: {
+    bg:          "#f4f5f7",
+    surface:     "#ffffff",
+    border:      "#dde0e8",
+    text:        "#1a1d26",
+    muted:       "#6b7080",
+    dim:         "#9298aa",
+    accent:      "#009e99",
+    edgeYes:     "#1fa860",
+    edgeNo:      "#d94f4f",
+    edgeDefault: "#b0b6c6",
+    gridLine:    "rgba(0,0,0,0.045)",
+    headerBg:    "rgba(244,245,247,0.97)",
+  },
+
+  fonts: {
+    body: "'IBM Plex Sans', sans-serif",
+    mono: "'IBM Plex Mono', monospace",
+  },
+
+  nodeTypes: {
+
+    start: {
+      legendLabel: null, accent: "#00bfb3",
+      dark:  { bg: "linear-gradient(135deg,#00bfb3,#009e99)", border: "none", borderLeft: null, titleColor: "#0d0f14" },
+      light: { bg: "linear-gradient(135deg,#00bfb3,#009e99)", border: "none", borderLeft: null, titleColor: "#ffffff" },
+    },
+
+    question: {
+      legendLabel: null, accent: "#3a4158",
+      dark:  { bg: "#13161e",  border: "1px solid #252a38",  borderLeft: "3px solid #252a38",  titleColor: "#e8eaf0", hintColor: "#7a8099", eyebrowColor: "#4a5068" },
+      light: { bg: "#ffffff",  border: "1px solid #dde0e8",  borderLeft: "3px solid #c4c9d8",  titleColor: "#1a1d26", hintColor: "#6b7080", eyebrowColor: "#9298aa" },
+    },
+
+    /* ── Add or remove outcome types below ── */
+
+    action: {
+      label: "Action", legendLabel: "Action", accent: "#00bfb3",
+      dark:  { bg: "rgba(0,191,179,0.06)",  border: "1px solid rgba(0,191,179,0.3)",   borderLeft: "3px solid rgba(0,191,179,0.6)",  titleColor: "rgba(0,191,179,0.9)",  hintColor: "rgba(0,191,179,0.5)",  eyebrowColor: "#00bfb3" },
+      light: { bg: "rgba(0,158,153,0.05)",  border: "1px solid rgba(0,158,153,0.35)",  borderLeft: "3px solid rgba(0,158,153,0.65)", titleColor: "#007a76",              hintColor: "#009e99",              eyebrowColor: "#007a76" },
+    },
+
+    review: {
+      label: "Review", legendLabel: "Review", accent: "#f04e98",
+      dark:  { bg: "rgba(240,78,152,0.06)", border: "1px solid rgba(240,78,152,0.3)",  borderLeft: "3px solid rgba(240,78,152,0.6)", titleColor: "rgba(240,78,152,0.9)", hintColor: "rgba(240,78,152,0.5)", eyebrowColor: "#f04e98" },
+      light: { bg: "rgba(240,78,152,0.04)", border: "1px solid rgba(200,50,120,0.3)",  borderLeft: "3px solid rgba(200,50,120,0.6)", titleColor: "#b5306e",              hintColor: "#c8407e",              eyebrowColor: "#b5306e" },
+    },
+
+    combined: {
+      label: "Combined", legendLabel: "Combined", accent: "#fec514",
+      dark:  { bg: "rgba(254,197,20,0.06)", border: "1px solid rgba(254,197,20,0.3)",  borderLeft: "3px solid rgba(254,197,20,0.6)", titleColor: "rgba(254,197,20,0.9)", hintColor: "rgba(254,197,20,0.5)", eyebrowColor: "#fec514" },
+      light: { bg: "rgba(200,150,0,0.05)",  border: "1px solid rgba(180,130,0,0.3)",   borderLeft: "3px solid rgba(180,130,0,0.6)",  titleColor: "#8a6200",              hintColor: "#b07d00",              eyebrowColor: "#8a6200" },
+    },
+
+    flag: {
+      label: "Flag", legendLabel: "Flag", accent: "#a87ff0",
+      dark:  { bg: "rgba(168,127,240,0.06)", border: "1px solid rgba(168,127,240,0.3)", borderLeft: "3px solid rgba(168,127,240,0.6)", titleColor: "rgba(168,127,240,0.9)", hintColor: "rgba(168,127,240,0.5)", eyebrowColor: "#a87ff0" },
+      light: { bg: "rgba(130,90,210,0.05)",  border: "1px solid rgba(130,90,210,0.3)",  borderLeft: "3px solid rgba(130,90,210,0.6)",  titleColor: "#6236b5",               hintColor: "#7a50c8",               eyebrowColor: "#6236b5" },
+    },
+
+    stop: {
+      label: "No Action", legendLabel: "No Action", accent: "#7a8099",
+      dark:  { bg: "rgba(122,128,153,0.05)", border: "1px solid rgba(122,128,153,0.25)", borderLeft: "3px solid rgba(122,128,153,0.4)", titleColor: "rgba(122,128,153,0.85)", hintColor: "rgba(122,128,153,0.5)", eyebrowColor: "#7a8099" },
+      light: { bg: "rgba(100,110,140,0.04)", border: "1px solid rgba(100,110,140,0.25)", borderLeft: "3px solid rgba(100,110,140,0.4)", titleColor: "#505870",                hintColor: "#7a8099",               eyebrowColor: "#606880" },
+    },
+  },
+};
+
+
+/* ══════════════════════════════════════════════════════════════════
+   TREE DATA — edit this to change your tree content
+   ══════════════════════════════════════════════════════════════════
+
+   Each node:
+     id          Unique string, no spaces
+     type        Key from CONFIG.nodeTypes ("question" for branches)
+     eyebrow     Small label above the title
+     isNew       Optional — shows a yellow NEW badge
+     title       Main text
+     hint        Optional italic subtext / gate condition
+     edgeLabel   "YES" | "NO" | any short string | "" on root question
+     children    Nested child nodes (omit or [] for leaf nodes)
+   ════════════════════════════════════════════════════════════════ */
+const TREE = {
+  id: "start",
+  type: "start",
+  title: "Start",
+  children: [
+    {
+      id: "q1",
+      type: "question",
+      eyebrow: "Question 1",
+      title: "Replace this with your first branching question.",
+      hint: "Optional: add a clarifying hint or condition here.",
+      edgeLabel: "",
+      children: [
+        {
+          id: "q2",
+          type: "question",
+          eyebrow: "Question 2",
+          title: "If YES above — ask a follow-up question here.",
+          hint: "Another clarifying hint.",
+          edgeLabel: "YES",
+          children: [
+            {
+              id: "out-a",
+              type: "action",
+              eyebrow: "Action Required",
+              title: "Describe the recommended action for this path.",
+              hint: "⊘ Gate: add a stop condition or gate check here.",
+              edgeLabel: "YES",
+              children: []
+            },
+            {
+              id: "out-b",
+              type: "review",
+              eyebrow: "Needs Review",
+              title: "Describe what should be reviewed or investigated.",
+              hint: "⊘ Gate: add a stop condition or gate check here.",
+              edgeLabel: "NO",
+              children: []
+            }
+          ]
+        },
+        {
+          id: "q3",
+          type: "question",
+          eyebrow: "Question 3",
+          title: "If NO above — ask a different follow-up question.",
+          hint: "Hint for this branch.",
+          edgeLabel: "NO",
+          children: [
+            {
+              id: "out-c",
+              type: "flag",
+              eyebrow: "Flag for Follow-up",
+              title: "Describe what should be flagged and why.",
+              hint: null,
+              edgeLabel: "YES",
+              children: []
+            },
+            {
+              id: "out-d",
+              type: "stop",
+              eyebrow: "No Action Needed",
+              title: "Describe why no further action is required.",
+              hint: "⊘ Stop gate: add your stop condition here.",
+              edgeLabel: "NO",
+              children: []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+</script>
+
+<!-- ③ Treage engine — replace the version tag to upgrade -->
+<!-- Local:  <script src="treage.js"></script>                                          -->
+<!-- CDN:    <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"> -->
+<script src="treage.js"></script>
+
+</body>
+</html>
