@@ -1,253 +1,189 @@
-# Treage - Interactive Decision Tree Framework
+# Treage
 
 **[→ Live Demo](https://rseldner.github.io/treage/)**
 
-A self-contained HTML file for building interactive decision trees.  no build tools, no server, no dependencies beyond a D3.js CDN script. Drop it in a browser and it works.
+A lightweight framework for building interactive decision trees.
+Just a JS file, your config/html, and a browser.
 
----
-
-## What It Does
-
-The framework renders the same tree in two modes, switchable from the header:
-
-- **Full Tree** - a zoomable, pannable D3 diagram of the entire tree at once. Good for reviewing the full logic or sharing a screenshot.
-- **Interactive** - a one-question-at-a-time wizard with breadcrumb navigation, progress dots, and a styled outcome card at the end. Good for day-to-day use by people making routing decisions.
-
-Both modes are driven by the same data. You define the tree once; both views update automatically.
-
-## Preview
 ![](tree.gif)
 
+---
 
+## How it works
+
+You write two things: 
+- a `CONFIG` object (colors, fonts, outcome types) 
+- a `TREE` object (your actual questions and outcomes). 
+
+The engine handles everything else (layout, rendering, zoom/pan, light/dark theme toggle)
+
+Both views are driven by the same data:
+
+- **Full Tree view** - zoomable/pannable D3 diagram of the whole tree. Good for reviewing the full logic.
+- **Interactive view**  a one-question-at-a-time flow with breadcrumb navigation, progress indicators, and a styled outcome card at the end. Good for actually stepping through the workflow.
 
 ---
 
-## How to Build a New Tree
+## Getting started
 
-Open the HTML file. There are two clearly marked sections to edit. Everything else is the engine - leave it alone!
+Grab `treage.js` and one of the examples as a starting point:
+
+```
+examples/starter.html      - minimal working tree to get started
+examples/boilerplate.html  - example with every feature documented with comments
+```
+
+The starter is the right place to begin. The boilerplate is the reference when you need to do something specific.
+
+Your file ends up looking like this:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Tree</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script>
+    const CONFIG = { ... };
+    const TREE   = { ... };
+  </script>
+  <script src="treage.js"></script>
+</head>
+<body></body>
+</html>
+```
 
 ---
 
-### Section ① - `CONFIG`
+## CONFIG
 
-Sets the tree's identity, color theme, and outcome types.
+Controls the appearance and outcome types for your tree.
 
 ```js
 const CONFIG = {
-  title:    "My Decision Tree",
-  subtitle: "Answer each question to reach a recommendation.",
-  icon:     `<svg .../>`,   // SVG string, or "" to omit
+  title:        "My Decision Tree",
+  subtitle:     "A short description.",
+  icon:         `<svg .../>`,   // SVG string, or "" to omit
 
-  palette: { ... },         // all colors in one place
-  fonts:   { ... },         // body and mono font stacks
-  nodeTypes: { ... },       // outcome category definitions
+  palette:      { ... },        // dark theme colors
+  paletteLight: { ... },        // light theme colors
+  fonts:        { ... },        // body and mono font stacks
+  nodeTypes:    { ... },        // outcome categories
 };
 ```
 
-#### `palette` - all color values are plain CSS strings
+### Palette 
 
-| Key | What it controls |
+Both `palette` and `paletteLight` use the same keys:
+
+| Key | Controls |
 |---|---|
-| `bg` | Canvas / page background |
+| `bg` | Page / canvas background |
 | `surface` | Card and control backgrounds |
 | `border` | Default border color |
 | `text` | Primary text |
-| `muted` | Secondary / subdued text |
+| `muted` | Secondary text |
 | `dim` | Eyebrow labels, placeholders |
-| `accent` | Brand color - hover states, active toggle |
-| `edgeYes` | Color of YES edges and YES buttons |
-| `edgeNo` | Color of NO edges and NO buttons |
-| `edgeDefault` | Color of unlabelled edges |
+| `accent` | Brand color - hover states, active toggle, progress dots |
+| `edgeYes` | YES edges and YES buttons |
+| `edgeNo` | NO edges and NO buttons |
+| `edgeDefault` | Unlabelled or custom-label edges |
+| `gridLine` | Background grid line color |
+| `headerBg` | Header and footer background |
 
-Swap the entire palette to rebrand the tool in seconds.
+### Node types
 
-#### `fonts`
+Two keys are reserved(don't rename them):
 
-```js
-fonts: {
-  body: "'IBM Plex Sans', sans-serif",
-  mono: "'IBM Plex Mono', monospace",
-}
-```
+- **`start`** - the root node. One per tree.
+- **`question`** - all branching nodes. Used automatically.
 
-Any Google Fonts import in the `<style>` block, plus a font-family string here. The CSS uses variables so both views pick up the change.
+Everything else is an outcome type. The framework includes five:
 
-#### `nodeTypes` - define your outcome categories
-
-Two keys are reserved and must stay:
-
-- **`start`** - the root node (teal gradient pill at the top).
-- **`question`** - internal branching nodes. Used automatically; you never set `type: "question"` for an outcome.
-
-Add, rename, or remove any other key freely. Each outcome type needs:
-
-| Property | Purpose |
-|---|---|
-| `label` | Short string used in the eyebrow and legend |
-| `legendLabel` | Text in the legend pill. Set `null` to hide from legend |
-| `accent` | Dot color in the legend |
-| `bg` | Card background (use `rgba()` for transparency over the dark canvas) |
-| `border` | Card border shorthand, e.g. `"1px solid rgba(0,191,179,0.3)"` |
-| `borderLeft` | Left accent stripe, e.g. `"3px solid rgba(0,191,179,0.6)"` |
-| `titleColor` | Main title text color |
-| `hintColor` | Italic hint text color |
-| `eyebrowColor` | Eyebrow label color |
-
-The template ships with five generic outcome types as a starting point:
-
-| Key | Color | Intended use |
+| Key | Color | Use for |
 |---|---|---|
-| `action` | Teal | Positive "do this" paths |
-| `review` | Pink | Investigate / review paths |
-| `combined` | Yellow | Mixed / dual-output paths |
+| `action` | Teal | Positive "go do this" paths |
+| `review` | Pink | Needs investigation |
+| `combined` | Yellow | Two things both apply |
 | `flag` | Purple | Known issues, flagged items |
-| `stop` | Grey | No action / dead-end paths |
+| `stop` | Grey | No action needed |
+
+Add, remove, or rename outcome types freely. Each one needs `label`, `legendLabel`, `accent`, and `dark` / `light` sub-objects with the card styles. See `examples/boilerplate.html` for the full shape.
 
 ---
 
-### Section ② - `TREE`
+## TREE
 
-The actual content. This is the only section that controls what the tree says and how it branches.
-
-#### Node object reference
+The actual content. Two fields are worth knowing upfront.  everything else is in the examples.
 
 ```js
 {
-  id:         "q1",           // unique string, no spaces
-  type:       "question",     // "question" or any key from CONFIG.nodeTypes
-  eyebrow:    "Question 1",   // small label above the title
-  isNew:      true,           // optional - shows a yellow NEW badge
-  title:      "Your question or outcome text goes here.",
+  id:        "q1",          // unique string, no spaces
+  type:      "question",    // "question" or any key from CONFIG.nodeTypes
+  eyebrow:   "Question 1",  // small label above the title
+  isNew:     true,          // optional - yellow NEW badge
+  title:     "The question or outcome text.",
   hint:       "Optional italic subtext or gate condition.",
-  edgeLabel:  "YES",          // label on the edge from parent → this node
-  children:   [ ... ]         // nested child nodes; omit or [] for leaves
+  edgeLabel: "YES",         // label on the edge from parent to this node
+  children:  [ ... ]        // nested children; omit or [] for outcomes
 }
 ```
 
-#### Node types
+Edge labels:
 
-| `type` value | When to use |
+| Value | Renders as |
 |---|---|
-| `"question"` | Any branching node - has children |
-| `"action"`, `"review"`, etc. | Any terminal / outcome node - no children |
+| `"YES"` | Green edge + green button |
+| `"NO"` | Red edge + red button |
+| Any other string | Grey edge + plain button |
+| `""` or omitted | No label (use on the root question) |
 
-#### `edgeLabel` values
-
-| Value | Rendered as |
-|---|---|
-| `"YES"` | Green edge + green YES button |
-| `"NO"` | Red edge + red NO button |
-| Any other string | Default grey edge + plain button with that label |
-| `""` or omitted | No label on edge (use for the root question) |
-
-Non-binary branching works fine - give a question three or four children with labels like `"LOW"`, `"MED"`, `"HIGH"` and the engine handles it in both views.
-
-#### Tree shape rules
-
-- The root object must have `type: "start"`. There is exactly one.
-- The first child of `start` is the first question shown in Interactive mode.
-- Any node with no `children` (or an empty `[]`) is treated as a terminal outcome.
-- Nesting depth is unlimited.
-
-#### Minimal example
-
-```js
-const TREE = {
-  id: "start", type: "start", title: "Start",
-  children: [
-    {
-      id: "q1", type: "question",
-      eyebrow: "Question 1",
-      title: "Is the issue reproducible in a clean environment?",
-      hint: "Isolated from customer config, plugins, and custom code.",
-      edgeLabel: "",
-      children: [
-        {
-          id: "out-escalate", type: "flag",
-          eyebrow: "Escalate",
-          title: "Reproduce in a clean environment and open an engineering ticket.",
-          hint: "Attach HAR, logs, and minimal repro steps.",
-          edgeLabel: "YES", children: []
-        },
-        {
-          id: "out-env", type: "review",
-          eyebrow: "Environment Issue",
-          title: "Likely a customer environment or config issue. Work the case.",
-          hint: "Check plugins, custom mappings, and index settings first.",
-          edgeLabel: "NO", children: []
-        }
-      ]
-    }
-  ]
-};
-```
+Non-binary branching works fine - give a question three or four children with labels like `"LOW"`, `"MED"`, `"HIGH"` and both views handle it automatically.
 
 ---
 
-## Adding a New Outcome Type
+## Upgrading
 
-1. Add a key to `CONFIG.nodeTypes` with the visual properties above.
-2. Use that key as `type` on any leaf node in `TREE`.
-3. Done - the legend, full-tree renderer, and interactive outcome card all pick it up automatically.
-
----
-
-## Adding or Changing Questions
-
-- **Add a branch** - add an object to any question's `children` array.
-- **Add a depth level** - set `type: "question"` on a new child node and give it its own `children`.
-- **Add a new question between two existing ones** - insert a question node as the child of the current parent, and move the former children under the new question.
-- **Rename a question** - edit `title` and/or `hint`. Node sizing adjusts automatically.
-
-There is no maximum depth or branching factor enforced by the engine.
-
----
-
-## Controls
-
-### Full Tree view
-| Action | How |
-|---|---|
-| Zoom in/out | Scroll wheel, or `+` / `−` buttons |
-| Pan | Click and drag |
-| Fit everything on screen | `⊙` button (bottom-right) |
-
-### Interactive view
-| Action | How |
-|---|---|
-| Answer a question | Click YES or NO (or any edge-label button) |
-| Go back one step | ← Back button |
-| Jump to an earlier step | Click a breadcrumb link |
-| Start over from the outcome | ↺ Start over button |
-
----
-
-## File Structure
-
-The file is intentionally a single HTML file with no external dependencies other than D3 (loaded from cdnjs). There is no build step.
+The split between engine and config means upgrading is just a file swap:
 
 ```
-decision-tree-framework.html
-│
-├── <style>           CSS - layout, card styles, interactive view styles
-│                     Uses CSS variables set at runtime from CONFIG.palette
-│
-├── CONFIG            ① Edit this - meta, colors, fonts, outcome types
-├── TREE              ② Edit this - questions and outcomes
-│
-└── ENGINE            Do not edit
-    ├── applyPalette()      Writes CONFIG.palette → CSS variables
-    ├── autoSize()          Computes node dimensions from text length
-    ├── buildLayout()       D3 tree layout → pixel positions
-    ├── renderFullTree()    Draws SVG nodes + edges with D3
-    ├── iRender()           Renders the interactive wizard step
-    ├── iChoose/iGoTo()     Interactive state management
-    └── init()              Wires everything together
+Replace treage.js with the new version. Your CONFIG and TREE are untouched.
+```
+
+Or pin to a specific release via jsDelivr.  No local file needed:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"></script>
+```
+
+Change the version tag to upgrade. That's it.
+
+---
+
+## Repo structure
+
+```
+treage/
+├── index.html              live demo (Should I Deploy on Friday?)
+├── treage.js               the engine
+├── examples/
+│   ├── starter.html        minimal starting point
+│   └── boilerplate.html    full feature reference with comments
+├── tree.gif                demo screenshot
+├── README.md
+├── CREDITS.md
+└── LICENSE
 ```
 
 ---
 
 ## Requirements
 
-- Any modern browser (Chrome, Firefox, Safari, Edge).
-- Internet access to load fonts from Google Fonts and D3 from cdnjs. For air-gapped use, download both and update the `<link>` and `<script>` tags to point to local copies.
+Any modern browser. Internet access to load IBM Plex fonts from Google Fonts and D3 from cdnjs. For offline use, download both and point the tags at local copies.
+
+---
+
+## License
+
+MIT - see `LICENSE`.
