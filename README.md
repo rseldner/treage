@@ -28,10 +28,9 @@ Both views are driven by the same data:
 
 Grab one of the examples as a starting point:
 
-```
-examples/starter.html      - minimal working tree to get started
-examples/boilerplate.html  - example with every feature documented with comments
-```
+- [examples/starter.html](examples/starter.html) ([live demo](https://rseldner.github.io/treage/examples/starter.html))      - minimal working tree to get started
+- [examples/boilerplate.html](examples/boilerplate.html) ([live demo](https://rseldner.github.io/treage/examples/boilerplate.html)  - example with every feature documented with comments
+
 
 If jsdelivr cdn is accessible, nothing else is needed.  The engine is already defined in the examples...
 
