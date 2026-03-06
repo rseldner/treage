@@ -3,62 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Decision Tree</title>
+<title>Should I Deploy on a Friday?</title>
 
-<!-- ① D3 (required by the engine) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
-<!-- ② Your CONFIG and TREE — the ONLY things you ever edit -->
 <script>
 
-/* ══════════════════════════════════════════════════════════════════
-   CONFIG
-   ══════════════════════════════════════════════════════════════════
-
-   META
-   ──────────────────────────────────────────────────────────────────
-   title         Page title shown in the header
-   subtitle      Smaller descriptor line in the header
-   icon          SVG string for the header icon. Use "" to omit.
-
-   PALETTES  (provide both dark and light)
-   ──────────────────────────────────────────────────────────────────
-   bg            Canvas / page background
-   surface       Card and control backgrounds
-   border        Default border color
-   text          Primary text color
-   muted         Secondary / subdued text
-   dim           Eyebrow labels, placeholders
-   accent        Brand accent color
-   edgeYes       Color for YES edges / buttons
-   edgeNo        Color for NO  edges / buttons
-   edgeDefault   Color for unlabelled edges
-   gridLine      Grid overlay color (rgba recommended)
-   headerBg      Header/footer background
-
-   FONTS
-   ──────────────────────────────────────────────────────────────────
-   body / mono   CSS font-family strings
-
-   NODE TYPES
-   ──────────────────────────────────────────────────────────────────
-   Add / remove outcome types freely.
-   Each type needs: label, legendLabel, accent, dark{}, light{}
-   Reserved (keep): "start", "question"
-   ════════════════════════════════════════════════════════════════ */
 const CONFIG = {
 
-  title:    "My Decision Tree",
-  subtitle: "Answer each question to reach a recommendation.",
+  title:    "Should I Deploy on a Friday?",
+  subtitle: "You already know the answer. This just makes it official.",
   icon: `<svg width="34" height="34" viewBox="0 0 40 40" fill="none">
     <circle cx="20" cy="20" r="19" stroke="#00bfb3" stroke-width="1.5"/>
-    <circle cx="20" cy="10" r="3" fill="#00bfb3"/>
-    <circle cx="11" cy="28" r="3" fill="#00bfb3"/>
-    <circle cx="29" cy="28" r="3" fill="#00bfb3"/>
-    <line x1="20" y1="13" x2="20" y2="20" stroke="#00bfb3" stroke-width="1.5"/>
-    <line x1="20" y1="20" x2="11" y2="25" stroke="#00bfb3" stroke-width="1.5"/>
-    <line x1="20" y1="20" x2="29" y2="25" stroke="#00bfb3" stroke-width="1.5"/>
-    <circle cx="20" cy="20" r="2.5" fill="#00bfb3"/>
+    <text x="20" y="27" text-anchor="middle" font-size="18" fill="#00bfb3">🚢</text>
   </svg>`,
 
   palette: {
@@ -106,123 +63,213 @@ const CONFIG = {
 
     question: {
       legendLabel: null, accent: "#3a4158",
-      dark:  { bg: "#13161e",  border: "1px solid #252a38",  borderLeft: "3px solid #252a38",  titleColor: "#e8eaf0", hintColor: "#7a8099", eyebrowColor: "#4a5068" },
-      light: { bg: "#ffffff",  border: "1px solid #dde0e8",  borderLeft: "3px solid #c4c9d8",  titleColor: "#1a1d26", hintColor: "#6b7080", eyebrowColor: "#9298aa" },
+      dark:  { bg: "#13161e", border: "1px solid #252a38", borderLeft: "3px solid #252a38", titleColor: "#e8eaf0", hintColor: "#7a8099", eyebrowColor: "#4a5068" },
+      light: { bg: "#ffffff", border: "1px solid #dde0e8", borderLeft: "3px solid #c4c9d8", titleColor: "#1a1d26", hintColor: "#6b7080", eyebrowColor: "#9298aa" },
     },
 
-    /* ── Add or remove outcome types below ── */
-
-    action: {
-      label: "Action", legendLabel: "Action", accent: "#00bfb3",
-      dark:  { bg: "rgba(0,191,179,0.06)",  border: "1px solid rgba(0,191,179,0.3)",   borderLeft: "3px solid rgba(0,191,179,0.6)",  titleColor: "rgba(0,191,179,0.9)",  hintColor: "rgba(0,191,179,0.5)",  eyebrowColor: "#00bfb3" },
-      light: { bg: "rgba(0,158,153,0.05)",  border: "1px solid rgba(0,158,153,0.35)",  borderLeft: "3px solid rgba(0,158,153,0.65)", titleColor: "#007a76",              hintColor: "#009e99",              eyebrowColor: "#007a76" },
+    ship: {
+      label: "Ship It", legendLabel: "Ship It", accent: "#00bfb3",
+      dark:  { bg: "rgba(0,191,179,0.06)",   border: "1px solid rgba(0,191,179,0.3)",   borderLeft: "3px solid rgba(0,191,179,0.6)",  titleColor: "rgba(0,191,179,0.9)",  hintColor: "rgba(0,191,179,0.5)",  eyebrowColor: "#00bfb3" },
+      light: { bg: "rgba(0,158,153,0.05)",   border: "1px solid rgba(0,158,153,0.35)",  borderLeft: "3px solid rgba(0,158,153,0.65)", titleColor: "#007a76",              hintColor: "#009e99",              eyebrowColor: "#007a76" },
     },
 
-    review: {
-      label: "Review", legendLabel: "Review", accent: "#f04e98",
-      dark:  { bg: "rgba(240,78,152,0.06)", border: "1px solid rgba(240,78,152,0.3)",  borderLeft: "3px solid rgba(240,78,152,0.6)", titleColor: "rgba(240,78,152,0.9)", hintColor: "rgba(240,78,152,0.5)", eyebrowColor: "#f04e98" },
-      light: { bg: "rgba(240,78,152,0.04)", border: "1px solid rgba(200,50,120,0.3)",  borderLeft: "3px solid rgba(200,50,120,0.6)", titleColor: "#b5306e",              hintColor: "#c8407e",              eyebrowColor: "#b5306e" },
+    caution: {
+      label: "Careful", legendLabel: "Ship, but be careful", accent: "#fec514",
+      dark:  { bg: "rgba(254,197,20,0.06)",  border: "1px solid rgba(254,197,20,0.3)",  borderLeft: "3px solid rgba(254,197,20,0.6)", titleColor: "rgba(254,197,20,0.9)", hintColor: "rgba(254,197,20,0.5)", eyebrowColor: "#fec514" },
+      light: { bg: "rgba(200,150,0,0.05)",   border: "1px solid rgba(180,130,0,0.3)",   borderLeft: "3px solid rgba(180,130,0,0.6)",  titleColor: "#8a6200",              hintColor: "#b07d00",              eyebrowColor: "#8a6200" },
     },
 
-    combined: {
-      label: "Combined", legendLabel: "Combined", accent: "#fec514",
-      dark:  { bg: "rgba(254,197,20,0.06)", border: "1px solid rgba(254,197,20,0.3)",  borderLeft: "3px solid rgba(254,197,20,0.6)", titleColor: "rgba(254,197,20,0.9)", hintColor: "rgba(254,197,20,0.5)", eyebrowColor: "#fec514" },
-      light: { bg: "rgba(200,150,0,0.05)",  border: "1px solid rgba(180,130,0,0.3)",   borderLeft: "3px solid rgba(180,130,0,0.6)",  titleColor: "#8a6200",              hintColor: "#b07d00",              eyebrowColor: "#8a6200" },
+    wait: {
+      label: "Wait", legendLabel: "Wait Until Monday", accent: "#f04e98",
+      dark:  { bg: "rgba(240,78,152,0.06)",  border: "1px solid rgba(240,78,152,0.3)",  borderLeft: "3px solid rgba(240,78,152,0.6)", titleColor: "rgba(240,78,152,0.9)", hintColor: "rgba(240,78,152,0.5)", eyebrowColor: "#f04e98" },
+      light: { bg: "rgba(240,78,152,0.04)",  border: "1px solid rgba(200,50,120,0.3)",  borderLeft: "3px solid rgba(200,50,120,0.6)", titleColor: "#b5306e",              hintColor: "#c8407e",              eyebrowColor: "#b5306e" },
     },
 
-    flag: {
-      label: "Flag", legendLabel: "Flag", accent: "#a87ff0",
-      dark:  { bg: "rgba(168,127,240,0.06)", border: "1px solid rgba(168,127,240,0.3)", borderLeft: "3px solid rgba(168,127,240,0.6)", titleColor: "rgba(168,127,240,0.9)", hintColor: "rgba(168,127,240,0.5)", eyebrowColor: "#a87ff0" },
-      light: { bg: "rgba(130,90,210,0.05)",  border: "1px solid rgba(130,90,210,0.3)",  borderLeft: "3px solid rgba(130,90,210,0.6)",  titleColor: "#6236b5",               hintColor: "#7a50c8",               eyebrowColor: "#6236b5" },
-    },
-
-    stop: {
-      label: "No Action", legendLabel: "No Action", accent: "#7a8099",
-      dark:  { bg: "rgba(122,128,153,0.05)", border: "1px solid rgba(122,128,153,0.25)", borderLeft: "3px solid rgba(122,128,153,0.4)", titleColor: "rgba(122,128,153,0.85)", hintColor: "rgba(122,128,153,0.5)", eyebrowColor: "#7a8099" },
-      light: { bg: "rgba(100,110,140,0.04)", border: "1px solid rgba(100,110,140,0.25)", borderLeft: "3px solid rgba(100,110,140,0.4)", titleColor: "#505870",                hintColor: "#7a8099",               eyebrowColor: "#606880" },
+    nope: {
+      label: "No", legendLabel: "No", accent: "#ff6b6b",
+      dark:  { bg: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.3)", borderLeft: "3px solid rgba(255,107,107,0.6)", titleColor: "rgba(255,107,107,0.9)", hintColor: "rgba(255,107,107,0.5)", eyebrowColor: "#ff6b6b" },
+      light: { bg: "rgba(210,60,60,0.05)",   border: "1px solid rgba(210,60,60,0.3)",   borderLeft: "3px solid rgba(210,60,60,0.6)",   titleColor: "#b53030",               hintColor: "#cc4040",               eyebrowColor: "#b53030" },
     },
   },
 };
 
 
-/* ══════════════════════════════════════════════════════════════════
-   TREE DATA — edit this to change your tree content
-   ══════════════════════════════════════════════════════════════════
-
-   Each node:
-     id          Unique string, no spaces
-     type        Key from CONFIG.nodeTypes ("question" for branches)
-     eyebrow     Small label above the title
-     isNew       Optional — shows a yellow NEW badge
-     title       Main text
-     hint        Optional italic subtext / gate condition
-     edgeLabel   "YES" | "NO" | any short string | "" on root question
-     children    Nested child nodes (omit or [] for leaf nodes)
-   ════════════════════════════════════════════════════════════════ */
 const TREE = {
-  id: "start",
-  type: "start",
-  title: "Start",
+  id: "start", type: "start", title: "Start",
   children: [
     {
-      id: "q1",
+      id: "q-time",
       type: "question",
-      eyebrow: "Question 1",
-      title: "Replace this with your first branching question.",
-      hint: "Optional: add a clarifying hint or condition here.",
+      eyebrow: "Timing",
+      title: "Is it before 3pm?",
+      hint: "After 3pm the answer is almost always no. Keep reading if you need convincing.",
       edgeLabel: "",
       children: [
         {
-          id: "q2",
+          id: "q-hotfix",
           type: "question",
-          eyebrow: "Question 2",
-          title: "If YES above — ask a follow-up question here.",
-          hint: "Another clarifying hint.",
+          eyebrow: "The change",
+          title: "Is this fixing something already broken in production?",
+          hint: "An actual outage, not just a thing that bothers you.",
           edgeLabel: "YES",
           children: [
             {
-              id: "out-a",
-              type: "action",
-              eyebrow: "Action Required",
-              title: "Describe the recommended action for this path.",
-              hint: "⊘ Gate: add a stop condition or gate check here.",
+              id: "q-reviewed",
+              type: "question",
+              eyebrow: "Quality",
+              title: "Has it been reviewed and tested?",
+              hint: null,
               edgeLabel: "YES",
-              children: []
+              children: [
+                {
+                  id: "q-watching",
+                  type: "question",
+                  eyebrow: "Coverage",
+                  title: "Will you be around to watch it after it ships?",
+                  hint: "Deploying and going dark is not a strategy.",
+                  edgeLabel: "YES",
+                  children: [
+                    {
+                      id: "q-rollback",
+                      type: "question",
+                      eyebrow: "Safety net",
+                      title: "Can you undo it quickly if you need to?",
+                      hint: null,
+                      edgeLabel: "YES",
+                      children: [
+                        {
+                          id: "q-team",
+                          type: "question",
+                          eyebrow: "Team",
+                          title: "Does your team know this is going out today?",
+                          hint: null,
+                          edgeLabel: "YES",
+                          children: [
+                            {
+                              id: "out-ship",
+                              type: "ship",
+                              eyebrow: "Ship It",
+                              title: "Everything checks out. Go.",
+                              hint: "Watch it for 30 minutes. Then have a good weekend.",
+                              edgeLabel: "YES",
+                              children: []
+                            },
+                            {
+                              id: "out-tell-team",
+                              type: "wait",
+                              eyebrow: "Wait",
+                              title: "Send a quick message first, then ship it.",
+                              hint: "Two minutes now vs. a confused Saturday fire drill.",
+                              edgeLabel: "NO",
+                              children: []
+                            }
+                          ]
+                        },
+                        {
+                          id: "out-no-rollback",
+                          type: "wait",
+                          eyebrow: "Wait Until Monday",
+                          title: "No rollback plan means no clean exit if it goes wrong. Sort that out first.",
+                          hint: null,
+                          edgeLabel: "NO",
+                          children: []
+                        }
+                      ]
+                    },
+                    {
+                      id: "out-not-watching",
+                      type: "nope",
+                      eyebrow: "No",
+                      title: "If nobody is watching after it ships, do not ship it.",
+                      hint: "Find coverage or wait.",
+                      edgeLabel: "NO",
+                      children: []
+                    }
+                  ]
+                },
+                {
+                  id: "out-not-reviewed",
+                  type: "nope",
+                  eyebrow: "No",
+                  title: "Not reviewed, not tested. Not today.",
+                  hint: null,
+                  edgeLabel: "NO",
+                  children: []
+                }
+              ]
             },
             {
-              id: "out-b",
-              type: "review",
-              eyebrow: "Needs Review",
-              title: "Describe what should be reviewed or investigated.",
-              hint: "⊘ Gate: add a stop condition or gate check here.",
+              id: "q-hotfix-coverage",
+              type: "question",
+              eyebrow: "Coverage",
+              title: "Is someone on call who can respond if it makes things worse?",
+              hint: null,
               edgeLabel: "NO",
-              children: []
+              children: [
+                {
+                  id: "out-hotfix-careful",
+                  type: "caution",
+                  eyebrow: "Ship, but be careful",
+                  title: "Production is already broken, so ship the fix. Keep it tight -- nothing extra rides along.",
+                  hint: "Watch it closely. This is not the time to bundle in other changes.",
+                  edgeLabel: "YES",
+                  children: []
+                },
+                {
+                  id: "out-hotfix-nope",
+                  type: "nope",
+                  eyebrow: "No",
+                  title: "Something is broken and nobody is watching. Shipping blind makes it worse.",
+                  hint: "Get someone on it, then revisit.",
+                  edgeLabel: "NO",
+                  children: []
+                }
+              ]
             }
           ]
         },
         {
-          id: "q3",
+          id: "q-after3-hotfix",
           type: "question",
-          eyebrow: "Question 3",
-          title: "If NO above — ask a different follow-up question.",
-          hint: "Hint for this branch.",
+          eyebrow: "The change",
+          title: "Is production actually broken right now?",
+          hint: null,
           edgeLabel: "NO",
           children: [
             {
-              id: "out-c",
-              type: "flag",
-              eyebrow: "Flag for Follow-up",
-              title: "Describe what should be flagged and why.",
-              hint: null,
+              id: "q-after3-coverage",
+              type: "question",
+              eyebrow: "Coverage",
+              title: "Is someone available to respond immediately if it goes wrong?",
+              hint: "After 3pm 'I can check later' is not coverage.",
               edgeLabel: "YES",
-              children: []
+              children: [
+                {
+                  id: "out-after3-caution",
+                  type: "caution",
+                  eyebrow: "Ship, but be careful",
+                  title: "It is late, but production is down and you have someone watching. Fix it and nothing else.",
+                  hint: null,
+                  edgeLabel: "YES",
+                  children: []
+                },
+                {
+                  id: "out-after3-nope",
+                  type: "nope",
+                  eyebrow: "No",
+                  title: "After 3pm with no coverage. Close the tab.",
+                  hint: "Monday is genuinely not that far away.",
+                  edgeLabel: "NO",
+                  children: []
+                }
+              ]
             },
             {
-              id: "out-d",
-              type: "stop",
-              eyebrow: "No Action Needed",
-              title: "Describe why no further action is required.",
-              hint: "⊘ Stop gate: add your stop condition here.",
+              id: "out-after3-wait",
+              type: "nope",
+              eyebrow: "No",
+              title: "It is after 3pm on a Friday and nothing is on fire. You already know the answer.",
+              hint: null,
               edgeLabel: "NO",
               children: []
             }
@@ -235,10 +282,7 @@ const TREE = {
 
 </script>
 
-<!-- ③ Treage engine — replace the version tag to upgrade -->
-<!-- Local:  <script src="treage.js"></script>                                          -->
-<!-- CDN:    <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"> -->
-<script src="treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"></script>
 
 </body>
 </html>
