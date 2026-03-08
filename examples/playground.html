@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treage Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<!-- CodeMirror 5 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/addon/fold/foldcode.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/addon/fold/foldgutter.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/addon/fold/brace-fold.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/addon/edit/matchbrackets.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/addon/edit/closebrackets.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#0d0f14; --surface:#13161e; --surface2:#181c26;
+  --border:#252a38; --border2:#2e3448;
+  --text:#e8eaf0; --muted:#7a8099; --dim:#4a5068;
+  --accent:#00bfb3; --accent2:#009e99;
+  --yes:#3dd68c; --no:#ff6b6b; --warn:#fec514;
+  --font-body:'IBM Plex Sans',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body)}
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;flex-shrink:0;border-bottom:1px solid var(--border);background:rgba(13,15,20,0.97);backdrop-filter:blur(10px)}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent)}
+.logo-badge{background:rgba(0,191,179,0.1);border:1px solid rgba(0,191,179,0.3);border-radius:4px;padding:2px 7px;font-size:10px;color:var(--accent);letter-spacing:1px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;border-radius:6px;padding:7px 14px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.15s}
+.btn:hover{color:var(--text);border-color:var(--border2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#0d0f14;font-weight:700}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);color:#0d0f14}
+.btn-share{background:rgba(0,191,179,0.1);border-color:rgba(0,191,179,0.35);color:var(--accent)}
+.btn-share:hover{background:rgba(0,191,179,0.18);border-color:var(--accent);color:var(--accent)}
+.btn-share.active{background:rgba(61,214,140,0.12);border-color:rgba(61,214,140,0.4);color:var(--yes)}
+#status-bar{height:28px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface);font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+#status-dot{width:7px;height:7px;border-radius:50%;background:var(--yes);flex-shrink:0;box-shadow:0 0 6px rgba(61,214,140,0.5);transition:all 0.2s}
+#status-dot.error{background:var(--no);box-shadow:0 0 6px rgba(255,107,107,0.5)}
+#status-dot.loading{background:var(--warn);box-shadow:0 0 6px rgba(254,197,20,0.5);animation:pulse 0.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+#status-text{color:var(--muted)}
+#status-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+#node-count{color:var(--dim)}
+#status-time{color:var(--dim)}
+#main{flex:1;display:flex;overflow:hidden}
+#editor-side{width:46%;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.tab-bar{display:flex;align-items:stretch;height:38px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.tab{display:flex;align-items:center;gap:7px;padding:0 16px;cursor:pointer;font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--dim);border-bottom:2px solid transparent;transition:all 0.15s;user-select:none}
+.tab:hover{color:var(--muted)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-dot{width:6px;height:6px;border-radius:50%}
+.editor-wrap{flex:1;overflow:hidden;display:none;flex-direction:column}
+.editor-wrap.active{display:flex}
+.editor-label{padding:8px 14px 6px;flex-shrink:0;font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between}
+.editor-hint{font-size:9px;color:var(--dim);letter-spacing:0.3px;text-transform:none;font-weight:400}
+.cm-host{flex:1;overflow:hidden;min-height:0;position:relative}
+/* CM5 overrides */
+.CodeMirror {
+  height: 100% !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  line-height: 1.65 !important;
+}
+.CodeMirror-scroll { padding: 12px 0; }
+.CodeMirror-gutters {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border) !important;
+}
+.CodeMirror-linenumber { color: var(--dim) !important; padding: 0 10px 0 8px; min-width: 32px; }
+.CodeMirror-activeline-background { background: rgba(255,255,255,0.025) !important; }
+.CodeMirror-activeline-gutter .CodeMirror-linenumber { color: var(--muted) !important; background: rgba(255,255,255,0.04) !important; }
+.CodeMirror-cursor { border-left: 2px solid var(--accent) !important; }
+.CodeMirror-selected { background: rgba(0,191,179,0.18) !important; }
+.CodeMirror-focused .CodeMirror-selected { background: rgba(0,191,179,0.18) !important; }
+.CodeMirror-matchingbracket { background: rgba(0,191,179,0.15) !important; outline: 1px solid rgba(0,191,179,0.4) !important; color: inherit !important; border-radius: 2px; }
+/* Syntax colors */
+.cm-keyword   { color: #ff6b6b !important; }
+.cm-string    { color: #3dd68c !important; }
+.cm-string-2  { color: #3dd68c !important; }
+.cm-number    { color: #fec514 !important; }
+.cm-atom      { color: #7a8099 !important; }
+.cm-property  { color: #00bfb3 !important; }
+.cm-comment   { color: #4a5068 !important; font-style: italic; }
+.cm-punctuation { color: #4a5068 !important; }
+.cm-operator  { color: #4a5068 !important; }
+.cm-variable  { color: #e8eaf0 !important; }
+.cm-variable-2 { color: #e8eaf0 !important; }
+.cm-def       { color: #a87ff0 !important; }
+/* Fold gutter */
+.CodeMirror-foldgutter { width: 14px; }
+.CodeMirror-foldgutter-open,
+.CodeMirror-foldgutter-folded { color: var(--dim); cursor: pointer; padding: 0 4px; transition: color 0.15s; }
+.CodeMirror-foldgutter-open:hover,
+.CodeMirror-foldgutter-folded:hover { color: var(--accent); }
+.CodeMirror-foldmarker {
+  background: rgba(0,191,179,0.1);
+  border: 1px solid rgba(0,191,179,0.35);
+  color: var(--accent) !important;
+  border-radius: 3px;
+  padding: 0 6px;
+  font-size: 10px;
+  margin: 0 4px;
+  cursor: pointer;
+}
+/* Scrollbar */
+.CodeMirror-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.CodeMirror-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.CodeMirror-scroll { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+#error-panel{display:none;padding:10px 14px;flex-shrink:0;background:rgba(255,107,107,0.07);border-top:1px solid rgba(255,107,107,0.25);font-family:var(--font-mono);font-size:11px;color:#ff9090;line-height:1.5;max-height:80px;overflow-y:auto}
+#error-panel.visible{display:block}
+#preview-side{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#preview-bar{display:flex;align-items:center;gap:10px;padding:0 14px;height:38px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface);font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+.preview-label{font-size:10.5px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted)}
+.preview-dims{margin-left:auto;color:var(--dim);font-size:10px}
+#preview-frame{flex:1;border:none;background:#0d0f14}
+#resize-handle{width:4px;flex-shrink:0;cursor:col-resize;background:var(--border);transition:background 0.15s;position:relative;z-index:10}
+#resize-handle:hover,#resize-handle.dragging{background:var(--accent)}
+footer{height:28px;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:0 16px;border-top:1px solid var(--border);background:rgba(13,15,20,0.97);font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+footer a{color:var(--dim);text-decoration:none;transition:color 0.15s}
+footer a:hover{color:var(--accent)}
+.footer-sep{color:var(--border)}
+.kbd{display:inline-flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:9px;color:var(--dim);font-family:var(--font-mono)}
+#toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:8px 16px;font-family:var(--font-mono);font-size:11px;color:var(--accent);opacity:0;transition:all 0.2s;pointer-events:none;z-index:100;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#share-bar{position:fixed;top:60px;right:16px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;display:none;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.6);z-index:200;max-width:520px;width:calc(100% - 32px);animation:slideDown 0.18s ease}
+#share-bar.show{display:flex}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+#share-url-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-family:var(--font-mono);font-size:11px;padding:6px 10px;outline:none;min-width:0}
+#share-url-input:focus{border-color:var(--accent);color:var(--text)}
+#share-copy-btn{flex-shrink:0;padding:6px 12px;border-radius:5px;background:rgba(0,191,179,0.1);border:1px solid rgba(0,191,179,0.35);color:var(--accent);font-family:var(--font-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+#share-copy-btn:hover{background:rgba(0,191,179,0.2)}
+#share-copy-btn.copied{background:rgba(61,214,140,0.12);border-color:rgba(61,214,140,0.35);color:var(--yes)}
+#share-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;flex-shrink:0;transition:color 0.15s}
+#share-close:hover{color:var(--text)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="18" stroke="#00bfb3" stroke-width="1.5"/>
+        <circle cx="20" cy="10" r="2.5" fill="#00bfb3"/>
+        <circle cx="11" cy="28" r="2.5" fill="#00bfb3"/>
+        <circle cx="29" cy="28" r="2.5" fill="#00bfb3"/>
+        <line x1="20" y1="12.5" x2="20" y2="19" stroke="#00bfb3" stroke-width="1.5"/>
+        <line x1="20" y1="19" x2="11" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
+        <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
+        <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
+      </svg>
+      Treage <span class="logo-badge">Playground</span>
+    </div>
+    <div class="header-right">
+      <span class="kbd">Ctrl+Enter</span>
+      <span style="color:var(--dim);font-size:10px;font-family:var(--font-mono)">to run</span>
+      <button class="btn" onclick="resetToBoilerplate()">&#8635; Reset</button>
+      <button class="btn btn-share" id="btn-share" onclick="toggleShareBar()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        Share
+      </button>
+      <button class="btn btn-primary" onclick="exportHtml()">&#8595; Export HTML</button>
+    </div>
+  </header>
+
+  <div id="status-bar">
+    <div id="status-dot"></div>
+    <span id="status-text">Loading editor…</span>
+    <div id="status-right">
+      <span id="node-count"></span>
+      <span id="status-time"></span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="editor-side">
+      <div class="tab-bar">
+        <div class="tab active" id="tab-config" onclick="switchTab('config')">
+          <span class="tab-dot" style="background:#00bfb3"></span>CONFIG
+        </div>
+        <div class="tab" id="tab-tree" onclick="switchTab('tree')">
+          <span class="tab-dot" style="background:#a87ff0"></span>TREE
+        </div>
+      </div>
+      <div class="editor-wrap active" id="wrap-config">
+        <div class="editor-label">
+          <span>Visual config — colors, fonts, node types</span>
+        </div>
+        <div class="cm-host" id="cm-config"></div>
+      </div>
+      <div class="editor-wrap" id="wrap-tree">
+        <div class="editor-label">
+          <span>Tree data — questions and outcomes</span>
+        </div>
+        <div class="cm-host" id="cm-tree"></div>
+      </div>
+      <div id="error-panel"></div>
+    </div>
+    <div id="resize-handle"></div>
+    <div id="preview-side">
+      <div id="preview-bar">
+        <span class="preview-label">Live Preview</span>
+        <span style="color:var(--dim);font-size:10px;font-family:var(--font-mono)">— auto-renders on change · 500ms debounce</span>
+        <span class="preview-dims" id="preview-dims"></span>
+      </div>
+      <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+  </div>
+
+  <footer>
+    <span>Treage Playground</span>
+    <span class="footer-sep">&middot;</span>
+    <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
+    <span class="footer-sep">&middot;</span>
+    <span>MIT License</span>
+  </footer>
+</div>
+
+<!-- Share URL bar -->
+<div id="share-bar">
+  <input type="text" id="share-url-input" readonly />
+  <button id="share-copy-btn" onclick="copyShareUrl()">Copy</button>
+  <button id="share-close" onclick="closeShareBar()" title="Close">&#215;</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   Treage Playground — App Logic (CM5 edition)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Default content ──────────────────────────────────────────────── */
+const DEFAULT_CONFIG = `const CONFIG = {
+
+  title:    "My Decision Tree",
+  subtitle: "A short description of what this tree decides.",
+  icon: "",
+
+  palette: {
+    bg:          "#0d0f14",
+    surface:     "#13161e",
+    border:      "#252a38",
+    text:        "#e8eaf0",
+    muted:       "#7a8099",
+    dim:         "#4a5068",
+    accent:      "#00bfb3",
+    edgeYes:     "#3dd68c",
+    edgeNo:      "#ff6b6b",
+    edgeDefault: "#3a4158",
+    gridLine:    "rgba(255,255,255,0.018)",
+    headerBg:    "rgba(13,15,20,0.95)",
+  },
+
+  paletteLight: {
+    bg:          "#f4f5f7",
+    surface:     "#ffffff",
+    border:      "#dde0e8",
+    text:        "#1a1d26",
+    muted:       "#6b7080",
+    dim:         "#9298aa",
+    accent:      "#009e99",
+    edgeYes:     "#1fa860",
+    edgeNo:      "#d94f4f",
+    edgeDefault: "#b0b6c6",
+    gridLine:    "rgba(0,0,0,0.045)",
+    headerBg:    "rgba(244,245,247,0.97)",
+  },
+
+  fonts: {
+    body: "'IBM Plex Sans', sans-serif",
+    mono: "'IBM Plex Mono', monospace",
+  },
+
+  nodeTypes: {
+    start: {
+      legendLabel: null, accent: "#00bfb3",
+      dark:  { bg: "linear-gradient(135deg,#00bfb3,#009e99)", border: "none", borderLeft: null, titleColor: "#0d0f14" },
+      light: { bg: "linear-gradient(135deg,#00bfb3,#009e99)", border: "none", borderLeft: null, titleColor: "#ffffff" },
+    },
+    question: {
+      legendLabel: null, accent: "#3a4158",
+      dark:  { bg: "#13161e", border: "1px solid #252a38", borderLeft: "3px solid #252a38", titleColor: "#e8eaf0", hintColor: "#7a8099", eyebrowColor: "#4a5068" },
+      light: { bg: "#ffffff", border: "1px solid #dde0e8", borderLeft: "3px solid #c4c9d8", titleColor: "#1a1d26", hintColor: "#6b7080", eyebrowColor: "#9298aa" },
+    },
+    action: {
+      label: "Action", legendLabel: "Action", accent: "#00bfb3",
+      dark:  { bg: "rgba(0,191,179,0.06)",  border: "1px solid rgba(0,191,179,0.3)",   borderLeft: "3px solid rgba(0,191,179,0.6)",  titleColor: "rgba(0,191,179,0.9)",  hintColor: "rgba(0,191,179,0.5)",  eyebrowColor: "#00bfb3" },
+      light: { bg: "rgba(0,158,153,0.05)",  border: "1px solid rgba(0,158,153,0.35)",  borderLeft: "3px solid rgba(0,158,153,0.65)", titleColor: "#007a76",              hintColor: "#009e99",              eyebrowColor: "#007a76" },
+    },
+    review: {
+      label: "Review", legendLabel: "Review", accent: "#f04e98",
+      dark:  { bg: "rgba(240,78,152,0.06)", border: "1px solid rgba(240,78,152,0.3)",  borderLeft: "3px solid rgba(240,78,152,0.6)", titleColor: "rgba(240,78,152,0.9)", hintColor: "rgba(240,78,152,0.5)", eyebrowColor: "#f04e98" },
+      light: { bg: "rgba(240,78,152,0.04)", border: "1px solid rgba(200,50,120,0.3)",  borderLeft: "3px solid rgba(200,50,120,0.6)", titleColor: "#b5306e",              hintColor: "#c8407e",              eyebrowColor: "#b5306e" },
+    },
+    combined: {
+      label: "Combined", legendLabel: "Combined", accent: "#fec514",
+      dark:  { bg: "rgba(254,197,20,0.06)", border: "1px solid rgba(254,197,20,0.3)",  borderLeft: "3px solid rgba(254,197,20,0.6)", titleColor: "rgba(254,197,20,0.9)", hintColor: "rgba(254,197,20,0.5)", eyebrowColor: "#fec514" },
+      light: { bg: "rgba(200,150,0,0.05)",  border: "1px solid rgba(180,130,0,0.3)",   borderLeft: "3px solid rgba(180,130,0,0.6)",  titleColor: "#8a6200",              hintColor: "#b07d00",              eyebrowColor: "#8a6200" },
+    },
+    flag: {
+      label: "Flag", legendLabel: "Flag", accent: "#a87ff0",
+      dark:  { bg: "rgba(168,127,240,0.06)", border: "1px solid rgba(168,127,240,0.3)", borderLeft: "3px solid rgba(168,127,240,0.6)", titleColor: "rgba(168,127,240,0.9)", hintColor: "rgba(168,127,240,0.5)", eyebrowColor: "#a87ff0" },
+      light: { bg: "rgba(130,90,210,0.05)",  border: "1px solid rgba(130,90,210,0.3)",  borderLeft: "3px solid rgba(130,90,210,0.6)",  titleColor: "#6236b5",               hintColor: "#7a50c8",               eyebrowColor: "#6236b5" },
+    },
+    stop: {
+      label: "No Action", legendLabel: "No Action", accent: "#7a8099",
+      dark:  { bg: "rgba(122,128,153,0.05)", border: "1px solid rgba(122,128,153,0.25)", borderLeft: "3px solid rgba(122,128,153,0.4)", titleColor: "rgba(122,128,153,0.85)", hintColor: "rgba(122,128,153,0.5)", eyebrowColor: "#7a8099" },
+      light: { bg: "rgba(100,110,140,0.04)", border: "1px solid rgba(100,110,140,0.25)", borderLeft: "3px solid rgba(100,110,140,0.4)", titleColor: "#505870",                hintColor: "#7a8099",               eyebrowColor: "#606880" },
+    },
+  },
+};`;
+
+const DEFAULT_TREE = `const TREE = {
+  id: "start", type: "start", title: "Start",
+  children: [{
+    id: "q1", 
+    type: "question", 
+    eyebrow: "Question 1",
+    title: "Replace this with your first yes/no question.",
+    hint: "Optional: add a clarifying condition or scope boundary here.",
+    edgeLabel: "",
+    children: [
+      {
+        id: "q2", 
+        type: "question", 
+        eyebrow: "Question 2",
+        title: "If YES — ask a follow-up question to narrow the path further.",
+        hint: "Hints help users understand what 'yes' actually means here.",
+        edgeLabel: "YES",
+        children: [
+          { id: "out-action", 
+            type: "action", 
+            eyebrow: "Action Required",
+            title: "Describe the concrete action the user should take on this path.",
+            hint: "⊘ Gate: add a stop condition here if needed.", 
+            edgeLabel: "YES", 
+            children: [] },
+          { id: "out-review", 
+            type: "review", 
+            eyebrow: "Needs Review",
+            title: "Describe what should be reviewed, who should do it, and by when.",
+            hint: "⊘ Gate: Does this genuinely need review?", 
+            edgeLabel: "NO", 
+            children: [] }
+        ]
+      },
+      {
+        id: "q3", 
+        type: "question", 
+        eyebrow: "Question 3", 
+        isNew: true,
+        title: "If NO — ask a different follow-up. This branch was recently added.",
+        hint: "The isNew badge is set with isNew: true. Remove it when the branch matures.",
+        edgeLabel: "NO",
+        children: [
+          {
+            id: "q4", 
+            type: "question", 
+            eyebrow: "Question 4",
+            title: "Trees can go as deep as needed. Add another level here.",
+            hint: "Each additional level adds a depth ring in interactive progress dots.",
+            edgeLabel: "YES",
+            children: [
+              { id: "out-combined",
+                type: "combined", 
+                eyebrow: "Combined Path",
+                title: "Sometimes two actions are both required.",
+                hint: "⊘ Gate: Are both actions truly necessary?", 
+                edgeLabel: "YES", 
+                children: [] },
+              { id: "out-flag", 
+                type: "flag", 
+                eyebrow: "Flag for Follow-up",
+                title: "Flag this case for later investigation.",
+                hint: null, 
+                edgeLabel: "NO", 
+                children: [] }
+            ]
+          },
+          { id: "out-stop", 
+            type: "stop", 
+            eyebrow: "No Action Needed",
+            title: "Nothing to do here. Describe why no further action is required.",
+            hint: "⊘ Stop gate: Would another person look this up in 6 months?", 
+            edgeLabel: "NO", 
+            children: [] }
+        ]
+      }
+    ]
+  }]
+}`;
+
+/* ── CM5 editor references ─────────────────────────────────────────── */
+let configView, treeView;
+
+function createEditor(parentId, initialValue, onChange) {
+  const cm = CodeMirror(document.getElementById(parentId), {
+    value:             initialValue,
+    mode:              'javascript',
+    lineNumbers:       true,
+    matchBrackets:     true,
+    autoCloseBrackets: true,
+    foldGutter:        true,
+    gutters:           ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+    extraKeys: {
+      'Ctrl-Enter':  () => doRender(),
+      'Cmd-Enter':   () => doRender(),
+      'Tab':         cm => cm.execCommand('indentMore'),
+      'Shift-Tab':   cm => cm.execCommand('indentLess'),
+    },
+    indentUnit:    2,
+    tabSize:       2,
+    lineWrapping:  false,
+    autofocus:     false,
+  });
+  cm.on('change', onChange);
+  cm.setSize('100%', '100%');
+  return cm;
+}
+
+/* ── Helpers ───────────────────────────────────────────────────────── */
+function getConfig() { return configView ? configView.getValue() : ''; }
+function getTree()   { return treeView   ? treeView.getValue()   : ''; }
+
+function setEditorValue(cm, text) {
+  cm.setValue(text);
+  cm.clearHistory();
+}
+
+function countNodes(treeSrc) {
+  return (treeSrc.match(/\bid\s*:/g) || []).length;
+}
+
+/* ── Status ────────────────────────────────────────────────────────── */
+function setStatus(state, msg) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  dot.className = state || '';
+  text.textContent = msg;
+}
+
+function updateNodeCount() {
+  const el = document.getElementById('node-count');
+  if (!el) return;
+  const n = countNodes(getTree());
+  el.textContent = n ? n + ' node' + (n !== 1 ? 's' : '') : '';
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────── */
+let toastTimer;
+function showToast(msg, duration = 2000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+/* ── Tab switching ─────────────────────────────────────────────────── */
+function switchTab(tab) {
+  document.getElementById('tab-config').classList.toggle('active', tab === 'config');
+  document.getElementById('tab-tree').classList.toggle('active', tab === 'tree');
+  document.getElementById('wrap-config').classList.toggle('active', tab === 'config');
+  document.getElementById('wrap-tree').classList.toggle('active', tab === 'tree');
+  // CM5 needs a refresh when becoming visible
+  setTimeout(() => {
+    if (tab === 'config' && configView) configView.refresh();
+    if (tab === 'tree'   && treeView)   treeView.refresh();
+  }, 0);
+}
+
+/* ── Preview builder ───────────────────────────────────────────────── */
+function buildPreviewHTML(configSrc, treeSrc) {
+  return '<!DOCTYPE html><html lang="en"><head>' +
+    '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"><\/script>' +
+    '<script>' + configSrc + '\n' + treeSrc + '<\/script>' +
+    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.1.0/treage.js"><\/script>' +
+    '</head><body></body></html>';
+}
+
+let renderTimer;
+function scheduleRender() {
+  setStatus('loading', 'Rendering…');
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(doRender, 500);
+}
+
+function doRender() {
+  const configSrc = getConfig();
+  const treeSrc   = getTree();
+  const ep = document.getElementById('error-panel');
+
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(configSrc + '\n' + treeSrc)();
+    ep.classList.remove('visible');
+    ep.textContent = '';
+  } catch (e) {
+    ep.classList.add('visible');
+    ep.textContent = '⚠ ' + e.message;
+    setStatus('error', 'Parse error');
+    return;
+  }
+
+  const t0 = performance.now();
+  const frame = document.getElementById('preview-frame');
+  frame.srcdoc = buildPreviewHTML(configSrc, treeSrc);
+  frame.onload = () => {
+    const ms = Math.round(performance.now() - t0);
+    document.getElementById('status-time').textContent = ms + 'ms';
+    setStatus('', 'Ready');
+    updateNodeCount();
+  };
+}
+
+/* ── Export HTML ───────────────────────────────────────────────────── */
+function exportHtml() {
+  const html = buildPreviewHTML(getConfig(), getTree());
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'my-tree.html';
+  a.click();
+  showToast('Exported my-tree.html');
+}
+
+/* ── Reset to boilerplate ──────────────────────────────────────────── */
+function resetToBoilerplate() {
+  if (!confirm('Reset to boilerplate? Your current tree will be lost.')) return;
+  setEditorValue(configView, DEFAULT_CONFIG);
+  setEditorValue(treeView,   DEFAULT_TREE);
+  history.replaceState(null, '', window.location.pathname);
+  closeShareBar();
+  scheduleRender();
+  showToast('Reset to boilerplate');
+}
+
+/* ── Share: encode / decode ────────────────────────────────────────── */
+function encodeState() {
+  const payload = JSON.stringify({ c: getConfig(), t: getTree() });
+  return LZString.compressToEncodedURIComponent(payload);
+}
+
+function decodeHash(hash) {
+  try {
+    const raw  = hash.startsWith('#') ? hash.slice(1) : hash;
+    const json = LZString.decompressFromEncodedURIComponent(raw);
+    if (!json) return null;
+    return JSON.parse(json);
+  } catch (e) {
+    return null;
+  }
+}
+
+function buildShareURL() {
+  return window.location.origin + window.location.pathname + '#' + encodeState();
+}
+
+/* ── Share bar UI ──────────────────────────────────────────────────── */
+function toggleShareBar() {
+  const bar = document.getElementById('share-bar');
+  if (bar.classList.contains('show')) {
+    closeShareBar();
+  } else {
+    openShareBar();
+  }
+}
+
+function openShareBar() {
+  const encoded = encodeState();
+  history.replaceState(null, '', '#' + encoded);
+  const url = window.location.href;
+  document.getElementById('share-url-input').value = url;
+  document.getElementById('share-bar').classList.add('show');
+  document.getElementById('btn-share').classList.add('active');
+  document.getElementById('share-url-input').select();
+}
+
+function closeShareBar() {
+  document.getElementById('share-bar').classList.remove('show');
+  document.getElementById('btn-share').classList.remove('active');
+}
+
+function copyShareUrl() {
+  const input = document.getElementById('share-url-input');
+  const btn   = document.getElementById('share-copy-btn');
+  navigator.clipboard.writeText(input.value).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    showToast('Link copied to clipboard');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+/* ── Resize handle ─────────────────────────────────────────────────── */
+(function initResize() {
+  const handle   = document.getElementById('resize-handle');
+  const edSide   = document.getElementById('editor-side');
+  const main     = document.getElementById('main');
+  let dragging   = false, startX = 0, startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startX   = e.clientX;
+    startW   = edSide.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.userSelect  = 'none';
+    document.body.style.cursor      = 'col-resize';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const newW = Math.max(220, Math.min(main.offsetWidth - 200, startW + (e.clientX - startX)));
+    edSide.style.width = newW + 'px';
+    const pd = document.getElementById('preview-dims');
+    if (pd) pd.textContent = Math.round(main.offsetWidth - newW - 4) + 'px wide';
+    // keep CM5 layout correct while dragging
+    if (configView) configView.refresh();
+    if (treeView)   treeView.refresh();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor     = '';
+  });
+})();
+
+/* ── Preview dims ──────────────────────────────────────────────────── */
+function updatePreviewDims() {
+  const frame = document.getElementById('preview-frame');
+  const pd    = document.getElementById('preview-dims');
+  if (pd && frame) pd.textContent = frame.offsetWidth + ' × ' + frame.offsetHeight + 'px';
+}
+window.addEventListener('resize', updatePreviewDims);
+
+/* ── Keyboard shortcut (Ctrl/Cmd + Enter) ──────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    doRender();
+  }
+});
+
+/* ── Init ──────────────────────────────────────────────────────────── */
+(function init() {
+  let initConfig = DEFAULT_CONFIG;
+  let initTree   = DEFAULT_TREE;
+  let fromHash   = false;
+
+  const hash = window.location.hash;
+  if (hash && hash.length > 1) {
+    const state = decodeHash(hash);
+    if (state && state.c && state.t) {
+      initConfig = state.c;
+      initTree   = state.t;
+      fromHash   = true;
+    }
+  }
+
+  configView = createEditor('cm-config', initConfig, scheduleRender);
+  treeView   = createEditor('cm-tree',   initTree,   scheduleRender);
+
+  setStatus('loading', fromHash ? 'Loading shared tree…' : 'Loading…');
+  setTimeout(() => {
+    doRender();
+    updatePreviewDims();
+    if (fromHash) showToast('Loaded from shared link', 3000);
+  }, 100);
+})();
+</script>
+</body>
+</html>
