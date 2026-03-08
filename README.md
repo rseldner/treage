@@ -168,7 +168,11 @@ treage/
 ├── examples/
 │   ├── starter.html        minimal starting point
 │   └── boilerplate.html    full feature reference with comments
-├── tree.gif                demo screenshot
+├── playground/
+│   ├── playground.html     live Treage editor
+│   └── playground.png      Treage Playground  screenshot
+│   └── README.md    
+├── tree.gif                Treage demo screenshot
 ├── README.md
 ├── CREDITS.md
 └── LICENSE
