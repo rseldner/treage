@@ -52,6 +52,7 @@ header {
   flex-shrink: 0;
   background: var(--header-bg, rgba(13,15,20,0.95));
   backdrop-filter: blur(10px);
+  position: relative; z-index: 2;
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 .tg-header-icon { flex-shrink: 0; }
@@ -233,6 +234,7 @@ footer {
   background: var(--header-bg, rgba(13,15,20,0.95));
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
   font-size: 10px; color: var(--color-dim, #4a5068); letter-spacing: 0.5px;
+  position: relative; z-index: 2;
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 footer a { color: var(--color-dim, #4a5068); text-decoration: none; transition: color 0.15s; }
