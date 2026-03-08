@@ -10,6 +10,8 @@ edit your `CONFIG` and `TREE` objects directly, and the tree re-renders automati
 
 It is a self-contained HTML. Everything runs locally in the browser.
 
+![](playground.png)
+
 ---
 
 ## Interface
