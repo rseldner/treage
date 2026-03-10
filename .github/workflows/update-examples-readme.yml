@@ -1,0 +1,78 @@
+name: Update examples README
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'examples/**.html'
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate examples/README.md
+        run: |
+          python3 << 'PYEOF'
+          import os
+          import re
+
+          BASE_URL = "https://rseldner.github.io/treage/examples"
+          SKIP = {"starter.html", "boilerplate.html"}
+
+          def extract(pattern, html):
+              match = re.search(pattern, html, re.IGNORECASE)
+              return match.group(1).strip() if match else ""
+
+          files = sorted(
+              f for f in os.listdir("examples")
+              if f.endswith(".html") and f not in SKIP
+          )
+
+          rows = []
+          for filename in files:
+              with open(f"examples/{filename}") as f:
+                  html = f.read()
+
+              title = extract(r"<title>([^<]+)</title>", html) or filename.removesuffix(".html")
+              desc  = extract(r'<meta name="description" content="([^"]+)"', html)
+              link  = f"[Open →]({BASE_URL}/{filename})"
+
+              label = f"**{title}**<br><sub>{desc}</sub>" if desc else title
+              rows.append(f"| {label} | {link} |")
+
+          lines = [
+              "# Examples",
+              "",
+              "Live examples built with [Treage](https://github.com/rseldner/treage).",
+              "",
+              "| Example | Live Demo |",
+              "|---------|-----------|",
+              *rows,
+              "",
+              "---",
+              "",
+              "Framework reference files: "
+              "[starter.html](https://rseldner.github.io/treage/examples/starter.html) · "
+              "[boilerplate.html](https://rseldner.github.io/treage/examples/boilerplate.html)",
+          ]
+
+          with open("examples/README.md", "w") as f:
+              f.write("\n".join(lines) + "\n")
+
+          print("examples/README.md written")
+          PYEOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add examples/README.md
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: update examples/README.md [skip ci]"
+          git push
