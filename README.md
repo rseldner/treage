@@ -1,4 +1,5 @@
-# Treage
+# Treage (trē-ˌäzh )
+>(it's "triage" but with a tree in it )
 
 **[→ Live Demo](https://rseldner.github.io/treage/)**
 
@@ -165,7 +166,7 @@ The split between engine and config means upgrading is just a file swap:
 treage/
 ├── index.html              live demo (Should I Deploy on Friday?)
 ├── treage.js               the engine
-├── examples/
+├── examples/               example decision tree repo
 │   ├── starter.html        minimal starting point
 │   └── boilerplate.html    full feature reference with comments
 ├── playground/
