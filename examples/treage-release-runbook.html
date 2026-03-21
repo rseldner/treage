@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treage Release Runbook</title>
+<meta name="description" content="Step-by-step release checklist for publishing a new Treage version.">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<script>
+const CONFIG = {
+  title:    "Treage Release Runbook",
+  subtitle: "Step-by-step guide for shipping a new version.",
+
+  icon: `<svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="17" cy="6"  r="4" fill="currentColor" opacity="0.9"/>
+    <circle cx="7"  cy="27" r="4" fill="currentColor" opacity="0.9"/>
+    <circle cx="27" cy="27" r="4" fill="currentColor" opacity="0.9"/>
+    <line x1="17" y1="10" x2="7"  y2="23" stroke="currentColor" stroke-width="1.8" opacity="0.6"/>
+    <line x1="17" y1="10" x2="27" y2="23" stroke="currentColor" stroke-width="1.8" opacity="0.6"/>
+  </svg>`,
+
+  palette: {
+    bg:           "#0e1117",
+    surface:      "#161b22",
+    border:       "#30363d",
+    text:         "#e6edf3",
+    muted:        "#8b949e",
+    dim:          "#484f58",
+    accent:       "#58a6ff",
+    edgeYes:      "#3fb950",
+    edgeNo:       "#f85149",
+    edgeDefault:  "#58a6ff",
+    gridLine:     "rgba(48,54,61,0.5)",
+    headerBg:     "rgba(14,17,23,0.85)",
+  },
+
+  paletteLight: {
+    bg:           "#f6f8fa",
+    surface:      "#ffffff",
+    border:       "#d0d7de",
+    text:         "#1f2328",
+    muted:        "#656d76",
+    dim:          "#9198a1",
+    accent:       "#0969da",
+    edgeYes:      "#1a7f37",
+    edgeNo:       "#cf222e",
+    edgeDefault:  "#0969da",
+    gridLine:     "rgba(208,215,222,0.5)",
+    headerBg:     "rgba(246,248,250,0.9)",
+  },
+
+  fonts: {
+    body: "'IBM Plex Sans', sans-serif",
+    mono: "'IBM Plex Mono', monospace",
+  },
+
+  nodeTypes: {
+    start: {
+      label: "Start",
+      legendLabel: null,
+      accent: "#58a6ff",
+      dark:  { bg: "rgba(88,166,255,0.08)", border: "1px solid rgba(88,166,255,0.3)", borderLeft: "3px solid rgba(88,166,255,0.6)", titleColor: "#58a6ff", hintColor: "#8b949e", eyebrowColor: "#484f58" },
+      light: { bg: "rgba(9,105,218,0.06)",  border: "1px solid rgba(9,105,218,0.25)", borderLeft: "3px solid rgba(9,105,218,0.5)", titleColor: "#0969da", hintColor: "#656d76", eyebrowColor: "#9198a1" },
+    },
+    question: {
+      label: "Step",
+      legendLabel: null,
+      accent: "#8b949e",
+      dark:  { bg: "rgba(139,148,158,0.07)", border: "1px solid rgba(139,148,158,0.25)", borderLeft: "3px solid rgba(139,148,158,0.5)", titleColor: "#e6edf3", hintColor: "#8b949e", eyebrowColor: "#484f58" },
+      light: { bg: "rgba(101,109,118,0.06)", border: "1px solid rgba(101,109,118,0.2)",  borderLeft: "3px solid rgba(101,109,118,0.4)", titleColor: "#1f2328", hintColor: "#656d76", eyebrowColor: "#9198a1" },
+    },
+    done: {
+      label: "Done",
+      legendLabel: "Done",
+      accent: "#3fb950",
+      dark:  { bg: "rgba(63,185,80,0.08)",  border: "1px solid rgba(63,185,80,0.3)",  borderLeft: "3px solid rgba(63,185,80,0.6)",  titleColor: "#3fb950", hintColor: "#8b949e", eyebrowColor: "#484f58" },
+      light: { bg: "rgba(26,127,55,0.07)",  border: "1px solid rgba(26,127,55,0.25)", borderLeft: "3px solid rgba(26,127,55,0.5)",  titleColor: "#1a7f37", hintColor: "#656d76", eyebrowColor: "#9198a1" },
+    },
+    action: {
+      label: "Action",
+      legendLabel: "Required step",
+      accent: "#d2a8ff",
+      dark:  { bg: "rgba(210,168,255,0.07)", border: "1px solid rgba(210,168,255,0.25)", borderLeft: "3px solid rgba(210,168,255,0.5)", titleColor: "#d2a8ff", hintColor: "#8b949e", eyebrowColor: "#484f58" },
+      light: { bg: "rgba(130,80,223,0.06)",  border: "1px solid rgba(130,80,223,0.2)",  borderLeft: "3px solid rgba(130,80,223,0.45)", titleColor: "#6639ba", hintColor: "#656d76", eyebrowColor: "#9198a1" },
+    },
+    caution: {
+      label: "Optional",
+      legendLabel: "Optional step",
+      accent: "#e3b341",
+      dark:  { bg: "rgba(227,179,65,0.08)",  border: "1px solid rgba(227,179,65,0.3)",  borderLeft: "3px solid rgba(227,179,65,0.6)",  titleColor: "#e3b341", hintColor: "#8b949e", eyebrowColor: "#484f58" },
+      light: { bg: "rgba(154,103,0,0.07)",   border: "1px solid rgba(154,103,0,0.25)",  borderLeft: "3px solid rgba(154,103,0,0.5)",   titleColor: "#7d4e00", hintColor: "#656d76", eyebrowColor: "#9198a1" },
+    },
+    skip: {
+      label: "Skip",
+      legendLabel: "Skip",
+      accent: "#484f58",
+      dark:  { bg: "rgba(48,54,61,0.5)",     border: "1px solid rgba(72,79,88,0.4)",    borderLeft: "3px solid rgba(72,79,88,0.7)",    titleColor: "#8b949e", hintColor: "#656d76", eyebrowColor: "#484f58" },
+      light: { bg: "rgba(208,215,222,0.4)",  border: "1px solid rgba(145,152,161,0.4)", borderLeft: "3px solid rgba(145,152,161,0.6)", titleColor: "#656d76", hintColor: "#9198a1", eyebrowColor: "#9198a1" },
+    },
+  },
+};
+
+const TREE = {
+  id: "start",
+  type: "start",
+  eyebrow: "Release Runbook",
+  title: "Shipping a new Treage version?",
+  hint: "Required steps have no branches — just complete them and move on. Optional steps ask a question.",
+  edgeLabel: "",
+  children: [
+
+    /* ── Step 1: version strings in treage.js ── */
+    {
+      id: "step-version-strings",
+      type: "action",
+      eyebrow: "Step 1 — treage.js",
+      title: "Update the version string in the header comment and the footer string in TREAGE_BODY.",
+      hint: "Both live inside treage.js. They must match the tag you are about to push.",
+      edgeLabel: "",
+      children: [
+
+        /* ── Step 2: CDN refs ── */
+        {
+          id: "step-cdn-refs",
+          type: "action",
+          eyebrow: "Step 2 — Consumer files",
+          title: "Update CDN refs from the old tag to the new tag in all consumer files.",
+          hint: "index.html, playground/playground.html (buildPreviewHTML), and everything under examples/ — including any new files added since the last release.",
+          edgeLabel: "",
+          children: [
+
+            /* ── Step 3: atomic commit ── */
+            {
+              id: "step-commit",
+              type: "action",
+              eyebrow: "Step 3 — Commit",
+              title: "Stage and commit all changes atomically.",
+              hint: "git add -A\ngit commit -m \"feat: vX.X.X — short description\"",
+              edgeLabel: "",
+              children: [
+
+                /* ── Step 4: push main ── */
+                {
+                  id: "step-push-main",
+                  type: "action",
+                  eyebrow: "Step 4 — Push",
+                  title: "Push the commit to main.",
+                  hint: "git push origin main",
+                  edgeLabel: "",
+                  children: [
+
+                    /* ── Step 5: tag ── */
+                    {
+                      id: "step-tag",
+                      type: "action",
+                      eyebrow: "Step 5 — Tag",
+                      title: "Create and push the version tag.",
+                      hint: "git tag vX.X.X\ngit push origin vX.X.X",
+                      edgeLabel: "",
+                      children: [
+
+                        /* ── Branch: re-push to existing tag? ── */
+                        {
+                          id: "q-repush",
+                          type: "question",
+                          eyebrow: "Optional step",
+                          title: "Are you re-pushing to an existing tag?",
+                          hint: "Common scenario: you shipped vX.X.X, then found a small bug and fixed it without bumping the version. jsDelivr caches by tag, so the old build will serve until you purge it.",
+                          edgeLabel: "",
+                          children: [
+
+                            /* YES → purge cache */
+                            {
+                              id: "step-purge",
+                              type: "caution",
+                              eyebrow: "Purge CDN cache",
+                              title: "Hit the jsDelivr purge URL to force the cache to pick up the updated tag.",
+                              hint: "https://purge.jsdelivr.net/gh/rseldner/treage@X.X.X/treage.js\n\nWithout this, jsDelivr will keep serving the previously cached build for that tag — visitors won't see your fix.",
+                              edgeLabel: "YES",
+                              children: [
+
+                                /* ── Step 6: verify CDN (after purge path) ── */
+                                {
+                                  id: "step-verify-post-purge",
+                                  type: "action",
+                                  eyebrow: "Step 6 — Verify CDN",
+                                  title: "Confirm the correct version is live on the CDN.",
+                                  hint: "https://cdn.jsdelivr.net/gh/rseldner/treage@X.X.X/treage.js\n\nCheck the version string in the header comment matches what you just shipped.",
+                                  edgeLabel: "",
+                                  children: [
+
+                                    /* ── Branch: close issue? (after purge path) ── */
+                                    {
+                                      id: "q-issue-post-purge",
+                                      type: "question",
+                                      eyebrow: "Optional step",
+                                      title: "Is there a GitHub issue to close for this release?",
+                                      hint: null,
+                                      edgeLabel: "",
+                                      children: [
+                                        {
+                                          id: "step-close-issue-post-purge",
+                                          type: "caution",
+                                          eyebrow: "Close issue",
+                                          title: "Get the commit SHA and close the issue with a reference.",
+                                          hint: "git log --oneline -1\n\nPaste the SHA in the issue close comment so there is a permanent link between the fix and the release commit.",
+                                          edgeLabel: "YES",
+                                          children: [
+                                            {
+                                              id: "done-post-purge-issue",
+                                              type: "done",
+                                              eyebrow: "Shipped",
+                                              title: "Release complete. Issue closed.",
+                                              hint: null,
+                                              edgeLabel: "",
+                                              children: []
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          id: "done-post-purge-no-issue",
+                                          type: "done",
+                                          eyebrow: "Shipped",
+                                          title: "Release complete.",
+                                          hint: null,
+                                          edgeLabel: "NO",
+                                          children: []
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+
+                            /* NO → skip purge, go straight to verify */
+                            {
+                              id: "skip-purge",
+                              type: "skip",
+                              eyebrow: "Skip — new tag",
+                              title: "No cache purge needed. jsDelivr will resolve the new tag fresh.",
+                              hint: null,
+                              edgeLabel: "NO",
+                              children: [
+
+                                /* ── Step 6: verify CDN (no-purge path) ── */
+                                {
+                                  id: "step-verify",
+                                  type: "action",
+                                  eyebrow: "Step 6 — Verify CDN",
+                                  title: "Confirm the correct version is live on the CDN.",
+                                  hint: "https://cdn.jsdelivr.net/gh/rseldner/treage@X.X.X/treage.js\n\nCheck the version string in the header comment matches what you just shipped.",
+                                  edgeLabel: "",
+                                  children: [
+
+                                    /* ── Branch: close issue? ── */
+                                    {
+                                      id: "q-issue",
+                                      type: "question",
+                                      eyebrow: "Optional step",
+                                      title: "Is there a GitHub issue to close for this release?",
+                                      hint: null,
+                                      edgeLabel: "",
+                                      children: [
+                                        {
+                                          id: "step-close-issue",
+                                          type: "caution",
+                                          eyebrow: "Close issue",
+                                          title: "Get the commit SHA and close the issue with a reference.",
+                                          hint: "git log --oneline -1\n\nPaste the SHA in the issue close comment so there is a permanent link between the fix and the release commit.",
+                                          edgeLabel: "YES",
+                                          children: [
+                                            {
+                                              id: "done-with-issue",
+                                              type: "done",
+                                              eyebrow: "Shipped",
+                                              title: "Release complete. Issue closed.",
+                                              hint: null,
+                                              edgeLabel: "",
+                                              children: []
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          id: "done-no-issue",
+                                          type: "done",
+                                          eyebrow: "Shipped",
+                                          title: "Release complete.",
+                                          hint: null,
+                                          edgeLabel: "NO",
+                                          children: []
+                                        }
+                                      ]
+                                    }
+
+                                  ]
+                                }
+                              ]
+                            }
+
+                          ]
+                        }
+
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+</script>
+
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.2.0/treage.js"></script>
+</head>
+<body></body>
+</html>
