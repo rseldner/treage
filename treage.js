@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.2.2 — Interactive Decision Tree Framework Engine
+   TREAGE v1.2.3 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,9 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.2.3 — feat: time-based isNew badge via isNewUntil date field.
+            feat: configurable edge label colors via CONFIG.edgeLabels.
+            fix: playground shared URL renders without page refresh.
    v1.2.2 — feat: SVG export button in tree view controls (download current tree as SVG).
             fix: header overflow on narrow viewports — mobile-responsive layout
              with collapsible subtitle and legend (Info toggle, collapsed by default).
@@ -453,7 +456,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.2.2</span>
+    <span>Treage v1.2.3</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -483,6 +486,11 @@ function activePalette() {
   return currentTheme === 'light' ? CONFIG.paletteLight : CONFIG.palette;
 }
 
+function isNodeNew(data) {
+  if (data.isNewUntil) return new Date() < new Date(data.isNewUntil);
+  return !!data.isNew;
+}
+
 function nodeTypeCfg(typeKey) {
   const t = CONFIG.nodeTypes[typeKey] || CONFIG.nodeTypes.question;
   return { ...t, ...(currentTheme === 'light' ? t.light : t.dark) };
@@ -490,7 +498,8 @@ function nodeTypeCfg(typeKey) {
 
 function edgeColors() {
   const p = activePalette();
-  return { YES: p.edgeYes, NO: p.edgeNo, default: p.edgeDefault };
+  const base = { YES: p.edgeYes, NO: p.edgeNo, default: p.edgeDefault };
+  return CONFIG.edgeLabels ? { ...base, ...CONFIG.edgeLabels } : base;
 }
 
 function applyPalette() {
@@ -742,7 +751,7 @@ function renderFullTree(g, layout) {
 
     const eb = card.append('xhtml:div').attr('class','tg-card-eyebrow').style('color', typeCfg.eyebrowColor);
     eb.append('xhtml:span').text(data.eyebrow || typeCfg.label || data.type.toUpperCase());
-    if (data.isNew) eb.append('xhtml:span').attr('class','tg-new-badge').text('NEW');
+    if (isNodeNew(data)) eb.append('xhtml:span').attr('class','tg-new-badge').text('NEW');
     card.append('xhtml:div').attr('class','tg-card-title').style('color', typeCfg.titleColor).text(data.title || '');
     if (data.hint) card.append('xhtml:div').attr('class','tg-card-hint').style('color', typeCfg.hintColor).text(data.hint);
 
@@ -846,7 +855,7 @@ function wMakeHistoryNode(nodeData, stepIndex) {
   const ey = document.createElement('div');
   ey.className = 'tg-walk-ey';
   ey.textContent = nodeData.eyebrow || '';
-  if (nodeData.isNew) {
+  if (isNodeNew(nodeData)) {
     const badge = document.createElement('span');
     badge.className = 'tg-new-badge'; badge.textContent = 'NEW';
     ey.appendChild(badge);
@@ -933,7 +942,7 @@ function wRender() {
     const ey = document.createElement('div');
     ey.className = 'tg-walk-ey';
     ey.textContent = currentNode.eyebrow || '';
-    if (currentNode.isNew) {
+    if (isNodeNew(currentNode)) {
       const badge = document.createElement('span');
       badge.className = 'tg-new-badge'; badge.textContent = 'NEW';
       ey.appendChild(badge);
@@ -1129,7 +1138,7 @@ function iRender() {
     card.className = 'tg-i-card';
     const eyebrow = document.createElement('div');
     eyebrow.className = 'tg-i-step-label'; eyebrow.textContent = current.eyebrow || '';
-    if (current.isNew) {
+    if (isNodeNew(current)) {
       const badge = document.createElement('span');
       badge.className = 'tg-new-badge'; badge.textContent = 'NEW';
       eyebrow.appendChild(badge);
@@ -1148,7 +1157,10 @@ function iRender() {
     (current.children || []).forEach(child => {
       const btn = document.createElement('button');
       const isYes = child.edgeLabel === 'YES', isNo = child.edgeLabel === 'NO';
+      const ec = edgeColors();
+      const customColor = child.edgeLabel && !isYes && !isNo ? (ec[child.edgeLabel] || null) : null;
       btn.className = 'tg-opt-btn ' + (isYes ? 'tg-yes' : isNo ? 'tg-no' : '');
+      if (customColor) btn.style.borderColor = customColor;
       const icon = document.createElement('span');
       icon.className = 'tg-opt-icon';
       icon.textContent = isYes ? '✓' : isNo ? '✗' : '→';

@@ -487,7 +487,7 @@ function buildPreviewHTML(configSrc, treeSrc) {
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">' +
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"><\/script>' +
     '<script>' + configSrc + '\n' + treeSrc + '<\/script>' +
-    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.2.2/treage.js"><\/script>' +
+    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.2.3/treage.js"><\/script>' +
     '</head><body></body></html>';
 }
 
@@ -686,6 +686,18 @@ document.addEventListener('keydown', e => {
     if (fromHash) showToast('Loaded from shared link', 3000);
   }, 100);
 })();
+
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash;
+  if (!hash || hash.length <= 1) return;
+  const state = decodeHash(hash);
+  if (state && state.c && state.t) {
+    configView.setValue(state.c);
+    treeView.setValue(state.t);
+    scheduleRender();
+    showToast('Loaded from shared link', 3000);
+  }
+});
 </script>
 </body>
 </html>
