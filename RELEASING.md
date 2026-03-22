@@ -9,6 +9,9 @@
   - `examples/elasticsearch-red-recovery.html`
   - `playground/playground.html` (buildPreviewHTML function)
   - etc...
+  ```
+  grep -rn "treage@" index.html examples/ playground/playground.html
+  ```
 
 - [ ] Commit all changes atomically:
   ```

@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.2.1 — Interactive Decision Tree Framework Engine
+   TREAGE v1.2.2 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,9 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.2.2 — feat: SVG export button in tree view controls (download current tree as SVG).
+            fix: header overflow on narrow viewports — mobile-responsive layout
+             with collapsible subtitle and legend (Info toggle, collapsed by default).
    v1.2.1 — fix: single-child nodes no longer treated as terminal outcomes
              fix: auto-pan biased upward so child nodes remain visible
              fix: header text truncates with ellipsis instead of overflowing.
@@ -69,6 +72,46 @@ header {
 .tg-header-text { min-width: 0; overflow: hidden; }
 .tg-header-text h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tg-header-text p  { font-size: 12px; color: var(--color-muted, #7a8099); font-weight: 300; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ── Legend toggle button (mobile only) ── */
+.tg-legend-toggle {
+  display: none; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--color-muted, #7a8099); padding: 0; flex-shrink: 0;
+  transition: color 0.18s;
+}
+.tg-legend-toggle:hover { color: var(--color-text, #e8eaf0); }
+.tg-legend-toggle svg { width: 12px; height: 12px; transition: transform 0.2s ease; }
+.tg-legend-toggle.tg-expanded svg { transform: rotate(180deg); }
+/* ── Collapsible secondary row ── */
+.tg-header-secondary {
+  display: none; /* hidden on desktop — shown via @media below */
+  width: 100%; padding: 0 28px 10px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+}
+.tg-header-secondary.tg-collapsed { max-height: 0; opacity: 0; pointer-events: none; padding-bottom: 0; }
+.tg-header-secondary.tg-expanded  { max-height: 200px; opacity: 1; pointer-events: auto; }
+.tg-secondary-sub {
+  font-size: 11px; color: var(--color-muted, #7a8099); font-weight: 300;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+/* ── Responsive: mobile header ── */
+@media (max-width: 768px) {
+  header {
+    height: auto; flex-wrap: wrap;
+    padding: 10px 16px 10px;
+    gap: 10px;
+  }
+  .tg-header-text p { display: none; } /* moved to secondary row */
+  .tg-legend { display: none !important; } /* moved to secondary row */
+  .tg-legend-toggle { display: flex; }
+  .tg-header-secondary { display: block; padding: 0 16px 10px; }
+  .tg-mode-toggle { margin-left: auto; }
+  .tg-github-link { display: none; }
+}
 /* ── Mode toggle ── */
 .tg-mode-toggle {
   display: flex;
@@ -111,6 +154,8 @@ body.tg-light .tg-icon-sun  { display: block; }
   color: var(--color-muted, #7a8099); text-transform: uppercase; letter-spacing: 0.5px;
 }
 .tg-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+/* mobile legend lives inside .tg-header-secondary */
+.tg-legend-mobile { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 4px; }
 /* ── GitHub link ── */
 .tg-github-link {
   display: flex; align-items: center; gap: 7px;
@@ -364,6 +409,12 @@ const TREAGE_BODY = `
         <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/> <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
       </svg>
     </button>
+    <button class="tg-legend-toggle tg-collapsed" id="tg-legend-toggle" onclick="treage.toggleLegend()">
+      Info
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
     <div class="tg-legend" id="tg-legend"></div>
     <a class="tg-github-link" href="https://github.com/rseldner/treage" target="_blank" rel="noopener">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -372,6 +423,10 @@ const TREAGE_BODY = `
       GitHub
     </a>
   </header>
+  <div class="tg-header-secondary tg-collapsed" id="tg-header-secondary">
+    <div class="tg-secondary-sub" id="tg-secondary-sub"></div>
+    <div class="tg-legend-mobile" id="tg-legend-mobile"></div>
+  </div>
 
   <div id="tg-panel-tree" class="tg-visible">
     <div id="tg-canvas"></div>
@@ -379,6 +434,13 @@ const TREAGE_BODY = `
       <button class="tg-ctrl-btn" id="tg-zoom-in"  title="Zoom in">+</button>
       <button class="tg-ctrl-btn" id="tg-zoom-out" title="Zoom out">−</button>
       <button class="tg-ctrl-btn" id="tg-zoom-fit" title="Fit all" style="font-size:13px">⊙</button>
+      <button class="tg-ctrl-btn" id="tg-export-png" title="Export as SVG">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -391,7 +453,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.2.1</span>
+    <span>Treage v1.2.2</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -1158,10 +1220,13 @@ window.treage = {
     document.getElementById('tg-btn-tree').classList.toggle('active', isTree);
     document.getElementById('tg-btn-walk').classList.toggle('active', isWalk);
     document.getElementById('tg-btn-interactive').classList.toggle('active', isInter);
-    const sub = document.getElementById('tg-header-sub');
-    if (isTree)  sub.textContent = CONFIG.subtitle + ' — Scroll to zoom · Drag to pan · Click edges to walk.';
-    if (isWalk)  sub.textContent = CONFIG.subtitle + ' — Click a path to advance. Click any history node to go back.';
-    if (isInter) sub.textContent = CONFIG.subtitle;
+    const sub    = document.getElementById('tg-header-sub');
+    const subMob = document.getElementById('tg-secondary-sub');
+    const subText = isTree  ? CONFIG.subtitle + ' — Scroll to zoom · Drag to pan · Click edges to walk.'
+                  : isWalk  ? CONFIG.subtitle + ' — Click a path to advance. Click any history node to go back.'
+                  :           CONFIG.subtitle;
+    sub.textContent = subText;
+    if (subMob) subMob.textContent = subText;
     if (isTree && fitView) setTimeout(() => fitView(300), 50);
     if (isWalk)  wRender();
   },
@@ -1173,6 +1238,16 @@ window.treage = {
     rebuildTree();
     iRender();
     try { localStorage.setItem('treage-theme', currentTheme); } catch(e) {}
+  },
+
+  toggleLegend() {
+    const btn       = document.getElementById('tg-legend-toggle');
+    const secondary = document.getElementById('tg-header-secondary');
+    const expanded  = secondary.classList.contains('tg-expanded');
+    secondary.classList.toggle('tg-collapsed', expanded);
+    secondary.classList.toggle('tg-expanded',  !expanded);
+    btn.classList.toggle('tg-collapsed', expanded);
+    btn.classList.toggle('tg-expanded',  !expanded);
   },
 };
 
@@ -1198,15 +1273,24 @@ function init() {
   document.getElementById('tg-header-icon').innerHTML    = CONFIG.icon || '';
   document.title = CONFIG.title;
 
-  // Legend
-  const legendEl = document.getElementById('tg-legend');
+  // Legend (desktop) + mobile clone
+  const legendEl       = document.getElementById('tg-legend');
+  const legendMobileEl = document.getElementById('tg-legend-mobile');
   Object.values(CONFIG.nodeTypes).forEach(t => {
     if (!t.legendLabel) return;
-    const item = document.createElement('div');
-    item.className = 'tg-legend-item';
-    item.innerHTML = `<span class="tg-legend-dot" style="background:${t.accent}"></span>${t.legendLabel}`;
-    legendEl.appendChild(item);
+    const mkItem = () => {
+      const item = document.createElement('div');
+      item.className = 'tg-legend-item';
+      item.innerHTML = `<span class="tg-legend-dot" style="background:${t.accent}"></span>${t.legendLabel}`;
+      return item;
+    };
+    legendEl.appendChild(mkItem());
+    legendMobileEl.appendChild(mkItem());
   });
+
+  // Mobile secondary row — subtitle
+  const secondarySub = document.getElementById('tg-secondary-sub');
+  if (secondarySub) secondarySub.textContent = CONFIG.subtitle + ' — Scroll to zoom · Drag to pan · Click edges to walk.';
 
   // Full tree
   container = document.getElementById('tg-canvas');
@@ -1232,6 +1316,7 @@ function init() {
   document.getElementById('tg-zoom-in') .onclick = () => treeSvg.transition().duration(280).call(treeZoom.scaleBy, 1.3);
   document.getElementById('tg-zoom-out').onclick = () => treeSvg.transition().duration(280).call(treeZoom.scaleBy, 0.77);
   document.getElementById('tg-zoom-fit').onclick = () => fitView(400);
+  document.getElementById('tg-export-png').onclick = () => exportSVG();
 
   treeLayout = buildLayout(TREE);
   renderFullTree(treeG, treeLayout);
@@ -1239,6 +1324,72 @@ function init() {
   window.addEventListener('resize', () => fitView(300));
 
   iReset();
+}
+
+/* ── SVG Export ── */
+function exportSVG() {
+  const svgEl = treeSvg.node();
+  if (!svgEl) return;
+
+  // Bounding box of drawn content
+  const g    = svgEl.querySelector('.tg-main-g');
+  const bbox = g ? g.getBBox() : { x: 0, y: 0, width: svgEl.clientWidth, height: svgEl.clientHeight };
+  const pad  = 40;
+  const W    = Math.ceil(bbox.width  + pad * 2);
+  const H    = Math.ceil(bbox.height + pad * 2);
+
+  // Clone, set explicit dimensions + viewBox cropped to content
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('width',   W);
+  clone.setAttribute('height',  H);
+  clone.setAttribute('viewBox', `${bbox.x - pad} ${bbox.y - pad} ${W} ${H}`);
+  clone.setAttribute('xmlns',   'http://www.w3.org/2000/svg');
+
+  // Reset pan/zoom transform so export is at natural scale
+  const cloneG = clone.querySelector('.tg-main-g');
+  if (cloneG) cloneG.setAttribute('transform', '');
+
+  // Resolve CSS variables and inline styles for self-contained rendering
+  const cs = getComputedStyle(document.documentElement);
+  const get = (v, fallback) => cs.getPropertyValue(v).trim() || fallback;
+  const bgColor = get('--color-bg', '#0d0f14');
+
+  // Background rect
+  const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bgRect.setAttribute('x',      bbox.x - pad);
+  bgRect.setAttribute('y',      bbox.y - pad);
+  bgRect.setAttribute('width',  W);
+  bgRect.setAttribute('height', H);
+  bgRect.setAttribute('fill',   bgColor);
+  clone.insertBefore(bgRect, clone.firstChild);
+
+  // Inline card styles with resolved values (foreignObject needs self-contained CSS)
+  const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  styleEl.textContent = [
+    '* { box-sizing: border-box; margin: 0; padding: 0; }',
+    '.tg-node-card { width:100%; height:100%; border-radius:10px; padding:11px 14px; display:flex; flex-direction:column; justify-content:center; overflow:hidden; box-sizing:border-box; font-family:sans-serif; }',
+    '.tg-card-eyebrow { font-family:monospace; font-size:9.5px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:flex; align-items:center; gap:5px; }',
+    '.tg-new-badge { background:rgba(254,197,20,0.15); color:#fec514; border:1px solid rgba(254,197,20,0.3); border-radius:4px; font-size:8px; padding:1px 4px; letter-spacing:0.5px; }',
+    '.tg-card-title { font-size:12px; font-weight:500; line-height:1.45; font-family:sans-serif; }',
+    '.tg-card-hint  { font-size:10.5px; font-weight:300; font-style:italic; margin-top:5px; line-height:1.4; font-family:sans-serif; }',
+  ].join('\n');
+  clone.insertBefore(styleEl, clone.firstChild);
+
+  // Fix SVG text elements that use var(--font-mono) via CSS class — won't resolve after serialization
+  clone.querySelectorAll('.tg-edge-label, text').forEach(el => {
+    const ff = el.getAttribute('font-family') || '';
+    if (!ff || ff.includes('var(')) el.setAttribute('font-family', 'monospace');
+  });
+
+  // Serialize and trigger download
+  const svgStr  = new XMLSerializer().serializeToString(clone);
+  const blob    = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = (CONFIG.title || 'treage').replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.svg';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 if (document.readyState === 'loading') {
