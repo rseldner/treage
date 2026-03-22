@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.2.3 — Interactive Decision Tree Framework Engine
+   TREAGE v1.3.0 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,15 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.3.0 — feat: node search in full tree view — type to highlight
+            matching nodes (title + hint). Toolbar button or "/" key
+            opens search bar; ↑/↓ cycles matches; Escape clears.
+            Non-matching nodes dim; matching nodes get accent ring.
+            feat: copy node link — shareable URL encodes walk path as
+            #path=q1:YES,q2:NO,... Opening the link restores the walk
+            to the same node with the path pre-highlighted.
+            Copy link button appears on outcome cards in both Walk and
+            Interactive modes.
    v1.2.3 — feat: time-based isNew badge via isNewUntil date field.
             feat: configurable edge label colors via CONFIG.edgeLabels.
             fix: playground shared URL renders without page refresh.
@@ -193,6 +202,54 @@ body.tg-light .tg-icon-sun  { display: block; }
   transition: all 0.2s; font-family: monospace; line-height: 1; user-select: none;
 }
 .tg-ctrl-btn:hover { color: var(--color-text, #e8eaf0); border-color: var(--color-accent, #00bfb3); }
+/* ── Node search ── */
+.tg-search-bar {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 20; display: flex; align-items: center; gap: 8px;
+  background: var(--color-surface, #13161e);
+  border: 1px solid var(--color-accent, #00bfb3);
+  border-radius: 10px; padding: 8px 14px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.45);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  transform: translateX(-50%) translateY(-6px);
+  min-width: 320px;
+}
+.tg-search-bar.tg-search-open {
+  opacity: 1; pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.tg-search-icon {
+  color: var(--color-accent, #00bfb3); flex-shrink: 0;
+  display: flex; align-items: center;
+}
+.tg-search-input {
+  flex: 1; background: none; border: none; outline: none;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 13px; color: var(--color-text, #e8eaf0);
+  letter-spacing: 0.2px;
+}
+.tg-search-input::placeholder { color: var(--color-dim, #4a5068); }
+.tg-search-count {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px; color: var(--color-muted, #7a8099);
+  flex-shrink: 0; min-width: 40px; text-align: right;
+}
+.tg-search-nav {
+  display: flex; gap: 2px; flex-shrink: 0;
+}
+.tg-search-nav-btn {
+  background: none; border: none; cursor: pointer; padding: 2px 5px;
+  color: var(--color-muted, #7a8099); font-size: 11px; border-radius: 4px;
+  transition: color 0.15s, background 0.15s; line-height: 1;
+}
+.tg-search-nav-btn:hover { color: var(--color-accent, #00bfb3); background: rgba(0,191,179,0.08); }
+.tg-search-clear {
+  background: none; border: none; cursor: pointer; padding: 2px 4px;
+  color: var(--color-dim, #4a5068); font-size: 14px; line-height: 1;
+  border-radius: 4px; flex-shrink: 0; transition: color 0.15s;
+}
+.tg-search-clear:hover { color: var(--color-text, #e8eaf0); }
 /* ── Node cards (full-tree SVG) ── */
 .tg-node-card {
   width: 100%; height: 100%; border-radius: 10px; padding: 11px 14px;
@@ -287,6 +344,16 @@ body.tg-light .tg-icon-sun  { display: block; }
   cursor: pointer; margin-top: 20px; transition: all 0.15s;
 }
 .tg-reset-btn:hover { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
+.tg-copy-link-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--color-border, #252a38);
+  border-radius: 6px; padding: 8px 14px; color: var(--color-muted, #7a8099);
+  font-size: 12px; font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  cursor: pointer; margin-top: 8px; margin-left: 8px; transition: all 0.15s;
+}
+.tg-copy-link-btn:hover { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
+.tg-copy-link-btn.tg-copied { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
 /* ── Walk mode ── */
 #tg-panel-walk { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
 #tg-panel-walk.tg-visible { display: flex; }
@@ -433,7 +500,26 @@ const TREAGE_BODY = `
 
   <div id="tg-panel-tree" class="tg-visible">
     <div id="tg-canvas"></div>
+    <div class="tg-search-bar" id="tg-search-bar">
+      <span class="tg-search-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </span>
+      <input class="tg-search-input" id="tg-search-input" type="text" placeholder="Search nodes…" autocomplete="off" spellcheck="false"/>
+      <span class="tg-search-count" id="tg-search-count"></span>
+      <div class="tg-search-nav">
+        <button class="tg-search-nav-btn" id="tg-search-prev" title="Previous match">↑</button>
+        <button class="tg-search-nav-btn" id="tg-search-next" title="Next match">↓</button>
+      </div>
+      <button class="tg-search-clear" id="tg-search-clear" title="Clear search">✕</button>
+    </div>
     <div class="tg-controls">
+      <button class="tg-ctrl-btn" id="tg-search-btn" title="Search nodes (/)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
       <button class="tg-ctrl-btn" id="tg-zoom-in"  title="Zoom in">+</button>
       <button class="tg-ctrl-btn" id="tg-zoom-out" title="Zoom out">−</button>
       <button class="tg-ctrl-btn" id="tg-zoom-fit" title="Fit all" style="font-size:13px">⊙</button>
@@ -442,6 +528,12 @@ const TREAGE_BODY = `
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
           <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
+      <button class="tg-ctrl-btn" id="tg-copy-link" title="Copy link to current position">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
         </svg>
       </button>
     </div>
@@ -456,7 +548,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.2.3</span>
+    <span>Treage v1.3.1</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -602,6 +694,7 @@ function treeWalkAdvance(targetNode, layoutNode) {
   iState.path.push(targetNode);
   highlightActivePath();
   panToNode(layoutNode);
+  writePath();
 }
 
 /* ── Tree walk: reset ── */
@@ -609,6 +702,7 @@ function treeWalkReset() {
   iState.path    = [];
   iState.choices = [];
   highlightActivePath();
+  writePath();
   if (treeLayout) {
     const startNode = treeLayout.nodes.find(n => n.data.id === TREE.id);
     if (startNode) panToNode(startNode, 400);
@@ -777,6 +871,10 @@ function rebuildTree() {
   treeLayout = buildLayout(TREE);
   renderFullTree(treeG, treeLayout);
   highlightActivePath();
+  if (searchState.query) {
+    searchState.matches = searchMatches(searchState.query);
+    applySearchHighlight();
+  }
 }
 
 /* ── Tree walk: find path from root to a given node ID ── */
@@ -816,6 +914,7 @@ function treeWalkJumpTo(targetData, layoutNode) {
   iState.choices = newChoices;
   highlightActivePath();
   panToNode(layoutNode);
+  writePath();
   wRender();
   iRender();
 }
@@ -994,6 +1093,7 @@ function wRender() {
       });
       root.appendChild(choices);
     }
+    root.appendChild(makeCopyLinkBtn());
 
   } else {
     // Outcome card
@@ -1031,6 +1131,7 @@ function wRender() {
     resetBtn.className = 'tg-reset-btn'; resetBtn.innerHTML = '↺ Start over';
     resetBtn.onclick = () => { treeWalkReset(); };
     card.appendChild(resetBtn);
+    card.appendChild(makeCopyLinkBtn());
     root.appendChild(card);
   }
 
@@ -1059,6 +1160,7 @@ function firstQuestion(node) {
 function iReset() {
   iState.path    = [ firstQuestion(TREE) ];
   iState.choices = [];
+  writePath();
   iRender();
   wRender();
 }
@@ -1066,6 +1168,7 @@ function iChoose(child) {
   iState.choices.push({ label: child.edgeLabel || child.type, node: child });
   iState.path.push(child);
   highlightActivePath();
+  writePath();
   if (treeLayout) {
     const layoutNode = treeLayout.nodes.find(n => n.data.id === child.id);
     if (layoutNode) panToNode(layoutNode);
@@ -1077,6 +1180,7 @@ function iGoTo(index) {
   iState.path    = iState.path.slice(0, index + 1);
   iState.choices = iState.choices.slice(0, index);
   highlightActivePath();
+  writePath();
   iRender();
   wRender();
 }
@@ -1170,6 +1274,7 @@ function iRender() {
       optRow.appendChild(btn);
     });
     card.appendChild(optRow);
+    card.appendChild(makeCopyLinkBtn());
 
   } else {
     card.className = 'tg-outcome-card';
@@ -1208,6 +1313,7 @@ function iRender() {
       iReset();
     };
     card.appendChild(reset);
+    card.appendChild(makeCopyLinkBtn());
   }
 
   root.appendChild(card);
@@ -1220,12 +1326,181 @@ function iRender() {
   }
 }
 
+/* ── Node search ── */
+const searchState = { query: '', matches: [], index: 0, open: false };
+
+function searchMatches(query) {
+  if (!treeLayout || !query) return [];
+  const q = query.toLowerCase();
+  return treeLayout.nodes.filter(d => {
+    if (d.data.type === 'start') return false;
+    const title = (d.data.title || '').toLowerCase();
+    const hint  = (d.data.hint  || '').toLowerCase();
+    return title.includes(q) || hint.includes(q);
+  });
+}
+
+function applySearchHighlight() {
+  if (!treeG) return;
+  const { query, matches, index } = searchState;
+  const hasQuery = query.length > 0;
+  const matchIds = new Set(matches.map(d => d.data.id));
+
+  treeG.selectAll('.tg-tree-node').each(function(d) {
+    const isMatch   = matchIds.has(d.data.id);
+    const isCurrent = matches[index] && matches[index].data.id === d.data.id;
+    const el = d3.select(this);
+
+    if (!hasQuery) {
+      el.attr('opacity', null)
+        .select('div').style('outline', null).style('outline-offset', null).style('box-shadow', null);
+    } else if (isCurrent) {
+      el.attr('opacity', 1)
+        .select('div')
+        .style('outline', `2px solid var(--color-accent, #00bfb3)`)
+        .style('outline-offset', '-2px')
+        .style('box-shadow', '0 0 0 4px rgba(0,191,179,0.18)');
+    } else if (isMatch) {
+      el.attr('opacity', 1)
+        .select('div')
+        .style('outline', `1.5px solid var(--color-accent, #00bfb3)`)
+        .style('outline-offset', '-1.5px')
+        .style('box-shadow', null);
+    } else {
+      el.attr('opacity', 0.1)
+        .select('div').style('outline', null).style('outline-offset', null).style('box-shadow', null);
+    }
+  });
+
+  // Dim edges when searching
+  treeG.selectAll('.tg-walk-edge, .tg-walk-label-group')
+    .attr('opacity', hasQuery ? 0.1 : null);
+
+  // Count display
+  const countEl = document.getElementById('tg-search-count');
+  if (countEl) {
+    countEl.textContent = hasQuery
+      ? (matches.length === 0 ? '0' : `${index + 1} / ${matches.length}`)
+      : '';
+  }
+}
+
+function searchPanTo(idx) {
+  if (!treeLayout || !searchState.matches.length) return;
+  const target = searchState.matches[idx];
+  if (target) panToNode(target, 350);
+}
+
+function openSearch() {
+  searchState.open = true;
+  const bar = document.getElementById('tg-search-bar');
+  const input = document.getElementById('tg-search-input');
+  if (bar)   bar.classList.add('tg-search-open');
+  if (input) { input.focus(); input.select(); }
+}
+
+function closeSearch() {
+  searchState.open  = false;
+  searchState.query = '';
+  searchState.matches = [];
+  searchState.index = 0;
+  const bar   = document.getElementById('tg-search-bar');
+  const input = document.getElementById('tg-search-input');
+  if (bar)   bar.classList.remove('tg-search-open');
+  if (input) input.value = '';
+  applySearchHighlight();
+  // Restore walk highlight if active
+  highlightActivePath();
+}
+
+function searchStep(dir) {
+  if (!searchState.matches.length) return;
+  searchState.index = (searchState.index + dir + searchState.matches.length) % searchState.matches.length;
+  applySearchHighlight();
+  searchPanTo(searchState.index);
+}
+
+/* ── Copy node link: path serialization ── */
+function serializePath() {
+  if (!iState.choices.length) return '';
+  return iState.choices.map(c => `${c.node.id}:${c.label}`).join(',');
+}
+
+function writePath() {
+  const serialized = serializePath();
+  const hash = serialized ? '#path=' + serialized : window.location.pathname + window.location.search;
+  try {
+    if (serialized) {
+      history.replaceState(null, '', '#path=' + serialized);
+    } else {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  } catch(e) {}
+}
+
+function deserializePath() {
+  const hash = window.location.hash;
+  if (!hash || !hash.startsWith('#path=')) return;
+  const encoded = hash.slice(6);
+  if (!encoded) return;
+  const steps = encoded.split(',');
+  // Walk TREE to replay choices
+  let current = firstQuestion(TREE);
+  const newPath = [current];
+  const newChoices = [];
+  for (const step of steps) {
+    const colonIdx = step.lastIndexOf(':');
+    if (colonIdx === -1) break;
+    const nodeId = step.slice(0, colonIdx);
+    const label  = step.slice(colonIdx + 1);
+    if (!current.children) break;
+    const child = current.children.find(c => c.id === nodeId);
+    if (!child) break;
+    newChoices.push({ label, node: child });
+    newPath.push(child);
+    current = child;
+  }
+  if (newPath.length > 1) {
+    iState.path    = newPath;
+    iState.choices = newChoices;
+  }
+}
+
+function makeCopyLinkBtn() {
+  const btn = document.createElement('button');
+  btn.className = 'tg-copy-link-btn';
+  btn.innerHTML = '⎘ Copy link';
+  btn.onclick = () => {
+    writePath();
+    const url = window.location.href;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        btn.innerHTML = '✓ Copied';
+        btn.classList.add('tg-copied');
+        setTimeout(() => { btn.innerHTML = '⎘ Copy link'; btn.classList.remove('tg-copied'); }, 2000);
+      });
+    } else {
+      // Fallback for non-https contexts
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.innerHTML = '✓ Copied';
+      btn.classList.add('tg-copied');
+      setTimeout(() => { btn.innerHTML = '⎘ Copy link'; btn.classList.remove('tg-copied'); }, 2000);
+    }
+  };
+  return btn;
+}
+
 /* ── Public API (called from inline onclick handlers) ── */
 window.treage = {
   setMode(mode) {
     const isTree  = mode === 'tree';
     const isWalk  = mode === 'walk';
     const isInter = mode === 'interactive';
+    if (!isTree && searchState.open) closeSearch();
     document.getElementById('tg-panel-tree').classList.toggle('tg-visible', isTree);
     document.getElementById('tg-panel-walk').classList.toggle('tg-visible', isWalk);
     document.getElementById('tg-panel-interactive').classList.toggle('tg-visible', isInter);
@@ -1330,12 +1605,67 @@ function init() {
   document.getElementById('tg-zoom-fit').onclick = () => fitView(400);
   document.getElementById('tg-export-png').onclick = () => exportSVG();
 
+  // Search
+  document.getElementById('tg-search-btn').onclick = () => openSearch();
+  document.getElementById('tg-search-clear').onclick = () => closeSearch();
+  document.getElementById('tg-search-prev').onclick = () => searchStep(-1);
+  document.getElementById('tg-search-next').onclick = () => searchStep(1);
+  document.getElementById('tg-search-input').addEventListener('input', function() {
+    searchState.query   = this.value.trim();
+    searchState.matches = searchMatches(searchState.query);
+    searchState.index   = 0;
+    applySearchHighlight();
+    if (searchState.matches.length > 0) searchPanTo(0);
+  });
+  document.getElementById('tg-search-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeSearch(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'Tab') { e.preventDefault(); searchStep(1); }
+    if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) { e.preventDefault(); searchStep(-1); }
+  });
+  document.addEventListener('keydown', function(e) {
+    const treeVisible = document.getElementById('tg-panel-tree').classList.contains('tg-visible');
+    if (!treeVisible) return;
+    if (e.key === '/' && !searchState.open && e.target.tagName !== 'INPUT') {
+      e.preventDefault();
+      openSearch();
+    }
+    if (e.key === 'Escape' && searchState.open) closeSearch();
+  });
+  document.getElementById('tg-copy-link').onclick = function() {
+    writePath();
+    const url = window.location.href;
+    const btn = this;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        btn.style.color = 'var(--color-accent, #00bfb3)';
+        btn.title = 'Copied!';
+        setTimeout(() => { btn.style.color = ''; btn.title = 'Copy link to current position'; }, 2000);
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.style.color = 'var(--color-accent, #00bfb3)';
+      btn.title = 'Copied!';
+      setTimeout(() => { btn.style.color = ''; btn.title = 'Copy link to current position'; }, 2000);
+    }
+  };
+
   treeLayout = buildLayout(TREE);
   renderFullTree(treeG, treeLayout);
   setTimeout(() => fitView(500), 100);
   window.addEventListener('resize', () => fitView(300));
 
-  iReset();
+  deserializePath();
+  if (iState.choices.length > 0) {
+    highlightActivePath();
+    wRender();
+    iRender();
+  } else {
+    iReset();
+  }
 }
 
 /* ── SVG Export ── */
