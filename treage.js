@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.2.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.2.1 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,9 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.2.1 — fix: single-child nodes no longer treated as terminal outcomes
+             fix: auto-pan biased upward so child nodes remain visible
+             fix: header text truncates with ellipsis instead of overflowing.
    v1.2.0 — tree view walk: click edge labels to advance path,
              active path highlight, auto-pan to next node,
              click Start node to reset walk.
@@ -63,8 +66,9 @@ header {
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 .tg-header-icon { flex-shrink: 0; }
-.tg-header-text h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; }
-.tg-header-text p  { font-size: 12px; color: var(--color-muted, #7a8099); font-weight: 300; margin-top: 2px; }
+.tg-header-text { min-width: 0; overflow: hidden; }
+.tg-header-text h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tg-header-text p  { font-size: 12px; color: var(--color-muted, #7a8099); font-weight: 300; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ── Mode toggle ── */
 .tg-mode-toggle {
   display: flex;
@@ -387,7 +391,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.2.0</span>
+    <span>Treage v1.2.1</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -513,8 +517,6 @@ function highlightActivePath() {
 function panToNode(d, duration) {
   if (!treeSvg || !treeZoom || !container) return;
   const dur = duration !== undefined ? duration : 450;
-  const cw = container.clientWidth, ch = container.clientHeight;
-  // Use current scale, only translate to center the node
   const t = d3.zoomTransform(treeSvg.node());
   const targetX = d.px;
   const targetY = d.py + d.nodeH / 2;
@@ -859,7 +861,8 @@ function wRender() {
   }
 
   // Current node
-  const isOutcome = currentNode.type !== 'question' && currentNode.type !== 'start';
+  const isOutcome = currentNode.type !== 'question' && currentNode.type !== 'start'
+                 && !(currentNode.children && currentNode.children.length > 0);
   const typeCfg   = nodeTypeCfg(currentNode.type);
 
   if (!isOutcome) {
@@ -912,9 +915,9 @@ function wRender() {
           }
           wRender();
           iRender();
-          // Scroll to top of walk panel so new content is visible
+          // Scroll walk panel to bottom so the active node and choices are visible
           const panel = document.getElementById('tg-panel-walk');
-          if (panel) panel.scrollTop = 0;
+          if (panel) panel.scrollTop = panel.scrollHeight;
         };
         choices.appendChild(btn);
       });
@@ -970,6 +973,8 @@ function wRender() {
       highlightActivePath();
       wRender();
       iRender();
+      const panel = document.getElementById('tg-panel-walk');
+      if (panel) panel.scrollTop = panel.scrollHeight;
     };
     root.appendChild(back);
   }
@@ -1012,7 +1017,8 @@ function iRender() {
 
   const current   = iState.path[iState.path.length - 1];
   const depth     = iState.path.length;
-  const isOutcome = current.type !== 'question' && current.type !== 'start';
+  const isOutcome = current.type !== 'question' && current.type !== 'start'
+                 && !(current.children && current.children.length > 0);
   const typeCfg   = nodeTypeCfg(current.type);
   const edges     = edgeColors();
   const p         = activePalette();
