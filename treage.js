@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.3.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.3.1 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,7 +14,7 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
-   v1.3.0 — feat: node search in full tree view — type to highlight
+   v1.3.1/1.3.0 — feat: node search in full tree view — type to highlight
             matching nodes (title + hint). Toolbar button or "/" key
             opens search bar; ↑/↓ cycles matches; Escape clears.
             Non-matching nodes dim; matching nodes get accent ring.
