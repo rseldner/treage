@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.3.1 — Interactive Decision Tree Framework Engine
+   TREAGE v1.3.3 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,12 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+    v1.3.2/v1.3.3 — feat: copy path toolbar button in full tree view — dimmed
+            when no walk is active, full color when a path exists.
+            feat: copy path — copies a plain-text walk summary to
+            clipboard. Format: bullet per step with eyebrow + title +
+            choice label, outcome on final line. Appears on outcome
+            cards in Walk and Interactive modes.
    v1.3.1/1.3.0 — feat: node search in full tree view — type to highlight
             matching nodes (title + hint). Toolbar button or "/" key
             opens search bar; ↑/↓ cycles matches; Escape clears.
@@ -202,6 +208,7 @@ body.tg-light .tg-icon-sun  { display: block; }
   transition: all 0.2s; font-family: monospace; line-height: 1; user-select: none;
 }
 .tg-ctrl-btn:hover { color: var(--color-text, #e8eaf0); border-color: var(--color-accent, #00bfb3); }
+.tg-ctrl-btn.tg-ctrl-dimmed { opacity: 0.3; pointer-events: none; }
 /* ── Node search ── */
 .tg-search-bar {
   position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
@@ -354,6 +361,16 @@ body.tg-light .tg-icon-sun  { display: block; }
 }
 .tg-copy-link-btn:hover { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
 .tg-copy-link-btn.tg-copied { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
+.tg-copy-path-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--color-border, #252a38);
+  border-radius: 6px; padding: 8px 14px; color: var(--color-muted, #7a8099);
+  font-size: 12px; font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  cursor: pointer; margin-top: 8px; margin-left: 8px; transition: all 0.15s;
+}
+.tg-copy-path-btn:hover { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
+.tg-copy-path-btn.tg-copied { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
 /* ── Walk mode ── */
 #tg-panel-walk { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
 #tg-panel-walk.tg-visible { display: flex; }
@@ -536,6 +553,13 @@ const TREAGE_BODY = `
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
         </svg>
       </button>
+      <button class="tg-ctrl-btn tg-ctrl-dimmed" id="tg-tree-copy-path" title="Copy path summary">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+          <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -548,7 +572,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.3.1</span>
+    <span>Treage v1.3.3</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -654,6 +678,10 @@ function highlightActivePath() {
   if (!treeG || !treeLayout) return;
   const pathIds = activePathIds();
   const hasWalk = iState.choices.length > 0;
+
+  // Toggle copy path toolbar button
+  const copyPathBtn = document.getElementById('tg-tree-copy-path');
+  if (copyPathBtn) copyPathBtn.classList.toggle('tg-ctrl-dimmed', !hasWalk);
 
   // Edges: active path = full opacity + thicker; others dim
   treeG.selectAll('.tg-walk-edge').each(function(d) {
@@ -1132,6 +1160,7 @@ function wRender() {
     resetBtn.onclick = () => { treeWalkReset(); };
     card.appendChild(resetBtn);
     card.appendChild(makeCopyLinkBtn());
+    card.appendChild(makeCopyPathBtn());
     root.appendChild(card);
   }
 
@@ -1314,6 +1343,7 @@ function iRender() {
     };
     card.appendChild(reset);
     card.appendChild(makeCopyLinkBtn());
+    card.appendChild(makeCopyPathBtn());
   }
 
   root.appendChild(card);
@@ -1464,6 +1494,50 @@ function deserializePath() {
     iState.path    = newPath;
     iState.choices = newChoices;
   }
+}
+
+function serializePathText() {
+  const lines = [];
+  for (let i = 0; i < iState.path.length; i++) {
+    const node   = iState.path[i];
+    const choice = iState.choices[i];
+    const isOutcome = !choice;
+    const eyebrow = (node.eyebrow || '').trim();
+    const title   = (node.title   || '').trim();
+    const label   = eyebrow ? `${eyebrow}: ${title}` : title;
+    if (isOutcome) {
+      lines.push(`Outcome: ${title}`);
+    } else {
+      lines.push(`• ${label} → ${choice.label}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function makeCopyPathBtn() {
+  const btn = document.createElement('button');
+  btn.className = 'tg-copy-path-btn';
+  btn.innerHTML = '❏ Copy path';
+  btn.onclick = () => {
+    const text = serializePathText();
+    if (!text) return;
+    const copy = () => {
+      btn.innerHTML = '✓ Copied';
+      btn.classList.add('tg-copied');
+      setTimeout(() => { btn.innerHTML = '❏ Copy path'; btn.classList.remove('tg-copied'); }, 2000);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(copy);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copy();
+    }
+  };
+  return btn;
 }
 
 function makeCopyLinkBtn() {
@@ -1650,6 +1724,27 @@ function init() {
       btn.style.color = 'var(--color-accent, #00bfb3)';
       btn.title = 'Copied!';
       setTimeout(() => { btn.style.color = ''; btn.title = 'Copy link to current position'; }, 2000);
+    }
+  };
+
+  document.getElementById('tg-tree-copy-path').onclick = function() {
+    if (!iState.choices.length) return;
+    const text = serializePathText();
+    const btn = this;
+    const copy = () => {
+      btn.style.color = 'var(--color-accent, #00bfb3)';
+      btn.title = 'Copied!';
+      setTimeout(() => { btn.style.color = ''; btn.title = 'Copy path summary'; }, 2000);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(copy);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copy();
     }
   };
 

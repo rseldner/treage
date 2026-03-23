@@ -11,6 +11,7 @@
   - etc...
   ```
   grep -rn "treage@" index.html examples/ playground/playground.html
+  grep -rln "treage@X.Y.Z" index.html examples/ playground/playground.html | xargs sed -i '' 's/treage@X\.Y\.Z/treage@A.B.C/g'
   ```
 
 - [ ] Commit all changes atomically:
@@ -46,3 +47,7 @@
   ```
   git log --oneline -1
   ```
+- [ ] Review Open Issues
+   ```
+   gh issue list --state open --json number,title,labels,updatedAt,body
+   ```
