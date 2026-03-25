@@ -189,7 +189,17 @@ footer a:hover{color:var(--accent)}
 
 #builder-footer{display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 #builder-footer .bfoot-label{font-family:var(--font-mono);font-size:9px;color:var(--dim);letter-spacing:0.5px;text-transform:uppercase}
-.bnode-edge-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);padding:1px 5px;background:var(--surface2);border:1px solid var(--border2);border-radius:3px;flex-shrink:0}
+.bnode-edge-label{font-family:var(--font-mono);font-size:9px;padding:1px 5px;background:var(--surface2);border:1px solid var(--border2);border-radius:3px;flex-shrink:0;color:var(--muted)}
+.bnode-edge-label.edge-yes{background:rgba(61,214,140,0.1);border-color:rgba(61,214,140,0.35);color:var(--yes)}
+.bnode-edge-label.edge-no{background:rgba(255,107,107,0.1);border-color:rgba(255,107,107,0.35);color:var(--no)}
+.bnode-edge-label.edge-default{background:rgba(0,191,179,0.1);border-color:rgba(0,191,179,0.3);color:var(--accent)}
+/* inline delete confirm */
+.bnode-confirm{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.bnode-confirm-label{font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;color:#ff9090}
+.bnode-btn.confirm-yes{color:#ff6b6b;border-color:rgba(255,107,107,0.5);background:rgba(255,107,107,0.1)}
+.bnode-btn.confirm-yes:hover{background:rgba(255,107,107,0.2);border-color:#ff6b6b}
+.bnode-btn.confirm-no{color:var(--muted);border-color:var(--border2)}
+.bnode-btn.confirm-no:hover{color:var(--text);border-color:var(--border2)}
 </style>
 </head>
 <body>
@@ -206,7 +216,7 @@ footer a:hover{color:var(--accent)}
         <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
         <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
       </svg>
-      Trēage <span class="logo-badge">Playground v1.1.0</span>
+      Trēage <span class="logo-badge">Playground v1.2.0</span>
     </div>
     <div class="header-right">
       <span class="kbd">Ctrl+Enter</span>
@@ -266,7 +276,8 @@ footer a:hover{color:var(--accent)}
         <div id="builder-scroll"></div>
         <div id="builder-footer">
           <span class="bfoot-label">Builder syncs to TREE on every change</span>
-          <button class="btn" id="btn-add-root" style="margin-left:auto;font-size:10px;padding:5px 10px;display:none" onclick="builderAddRoot()">+ Add Root Node</button>
+          <button class="btn" id="btn-undo" style="margin-left:auto;font-size:10px;padding:5px 10px;display:none;opacity:0.4;cursor:default" onclick="builderUndo()">↩ Undo</button>
+          <button class="btn" id="btn-add-root" style="font-size:10px;padding:5px 10px;display:none" onclick="builderAddRoot()">+ Add Root Node</button>
         </div>
       </div>
       <div id="error-panel"></div>
@@ -283,7 +294,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <footer>
-    <span>Treage Playground v1.1.0</span>
+    <span>Treage Playground v1.2.0</span>
     <span class="footer-sep">&middot;</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="footer-sep">&middot;</span>
@@ -302,9 +313,12 @@ footer a:hover{color:var(--accent)}
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   Treage Playground v1.1.0
+   Treage Playground v1.2.0
    https://github.com/rseldner/treage
 
+   v1.2.0 — feat: Builder UX polish. Edge label badges now reflect YES/NO
+            palette colors. Inline delete confirmation replaces browser
+            confirm() dialog. Undo stack (depth 10) for node/subtree deletes.
    v1.1.0 — feat: Builder tab — form-driven tree editor. Add, edit, and
             delete nodes without touching JS. Syncs bidirectionally with
             the TREE code editor on tab switch.
@@ -554,6 +568,7 @@ function switchTab(tab) {
   if (tab === 'builder') {
     // parse current TREE editor → populate builder
     builderLoadFromEditor();
+    undoRefresh();
   }
 }
 
@@ -773,9 +788,57 @@ document.addEventListener('keydown', e => {
    ══════════════════════════════════════════════════════════════════════ */
 
 let builderTree = null; // in-memory tree root node
+let undoStack = [];    // snapshots pushed before destructive actions (max 10)
+
+/* ── Undo stack helpers ────────────────────────────────────────────── */
+function undoPush() {
+  if (!builderTree) return;
+  undoStack.push(deepClone(builderTree));
+  if (undoStack.length > 10) undoStack.shift();
+  undoRefresh();
+}
+
+function undoRefresh() {
+  const btn = document.getElementById('btn-undo');
+  if (!btn) return;
+  const has = undoStack.length > 0;
+  btn.style.display = 'inline-flex';
+  btn.style.opacity = has ? '1' : '0.4';
+  btn.style.cursor  = has ? 'pointer' : 'default';
+}
+
+function builderUndo() {
+  if (!undoStack.length) return;
+  builderTree = undoStack.pop();
+  undoRefresh();
+  builderRenderAll();
+  builderFlush();
+  showToast('Undo');
+}
 
 const NODE_TYPES = ['start','question','action','review','combined','flag','stop'];
 const OUTCOME_TYPES = new Set(['action','review','combined','flag','stop']);
+
+/* ── Read edge colors from live CONFIG ─────────────────────────────── */
+function getEdgePalette() {
+  try {
+    const fn = new Function(getConfig() + '\n; return { yes: CONFIG.palette.edgeYes, no: CONFIG.palette.edgeNo, def: CONFIG.palette.edgeDefault };');
+    return fn();
+  } catch(e) {
+    return null;
+  }
+}
+
+function applyEdgeBadgeColor(el, edgeLabel) {
+  const label = (edgeLabel || '').toUpperCase();
+  if (label === 'YES') {
+    el.classList.add('edge-yes');
+  } else if (label === 'NO') {
+    el.classList.add('edge-no');
+  } else if (label) {
+    el.classList.add('edge-default');
+  }
+}
 
 /* ── Parse TREE editor source into a plain JS object ──────────────── */
 function builderParseTree(src) {
@@ -954,6 +1017,7 @@ function builderRenderNode(container, node, depth) {
     const eb = document.createElement('span');
     eb.className = 'bnode-edge-label';
     eb.textContent = node.edgeLabel;
+    applyEdgeBadgeColor(eb, node.edgeLabel);
     header.appendChild(eb);
   }
 
@@ -1066,7 +1130,11 @@ function builderRenderNode(container, node, depth) {
       if (def.key === 'title') preview.textContent = val || '(untitled)';
       if (def.key === 'edgeLabel') {
         const eb = el.querySelector('.bnode-edge-label');
-        if (eb) eb.textContent = val;
+        if (eb) {
+          eb.textContent = val;
+          eb.className = 'bnode-edge-label';
+          applyEdgeBadgeColor(eb, val);
+        }
       }
       if (def.key === 'type') {
         badge.className = 'bnode-type-badge type-' + val;
@@ -1107,16 +1175,59 @@ function builderAddChild(parentId) {
 
 /* ── Delete a node ─────────────────────────────────────────────────── */
 function builderDeleteNode(id, hasChildren) {
-  const msg = hasChildren
-    ? 'Delete this node and its entire subtree?'
-    : 'Delete this node?';
-  if (!confirm(msg)) return;
-  const parent = findParent(builderTree, id);
-  if (!parent) return;
-  parent.children = (parent.children || []).filter(c => c.id !== id);
-  builderRenderAll();
-  builderFlush();
-  showToast('Node deleted');
+  const nodeEl = document.querySelector(`.bnode[data-id="${id}"]`);
+  if (!nodeEl) return;
+  const actionsEl = nodeEl.querySelector('.bnode-actions');
+  if (!actionsEl) return;
+
+  // replace action buttons with inline confirm UI
+  const original = actionsEl.innerHTML;
+  actionsEl.innerHTML = '';
+
+  const confirmWrap = document.createElement('div');
+  confirmWrap.className = 'bnode-confirm';
+
+  const label = document.createElement('span');
+  label.className = 'bnode-confirm-label';
+  label.textContent = hasChildren ? 'Delete subtree?' : 'Delete?';
+  confirmWrap.appendChild(label);
+
+  const yesBtn = document.createElement('button');
+  yesBtn.className = 'bnode-btn confirm-yes';
+  yesBtn.textContent = 'Yes';
+  yesBtn.onclick = (e) => {
+    e.stopPropagation();
+    undoPush();
+    const parent = findParent(builderTree, id);
+    if (!parent) return;
+    parent.children = (parent.children || []).filter(c => c.id !== id);
+    builderRenderAll();
+    builderFlush();
+    showToast(hasChildren ? 'Subtree deleted' : 'Node deleted');
+  };
+
+  const noBtn = document.createElement('button');
+  noBtn.className = 'bnode-btn confirm-no';
+  noBtn.textContent = 'No';
+  noBtn.onclick = (e) => {
+    e.stopPropagation();
+    actionsEl.innerHTML = original;
+    // re-bind original button events by re-rendering (simpler than cloning)
+    builderRenderAll();
+  };
+
+  confirmWrap.appendChild(yesBtn);
+  confirmWrap.appendChild(noBtn);
+  actionsEl.appendChild(confirmWrap);
+
+  // clicking away cancels
+  const cancel = (e) => {
+    if (!nodeEl.contains(e.target)) {
+      builderRenderAll();
+      document.removeEventListener('click', cancel);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', cancel), 0);
 }
 
 window.addEventListener('hashchange', () => {
