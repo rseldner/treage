@@ -200,6 +200,15 @@ footer a:hover{color:var(--accent)}
 .bnode-btn.confirm-yes:hover{background:rgba(255,107,107,0.2);border-color:#ff6b6b}
 .bnode-btn.confirm-no{color:var(--muted);border-color:var(--border2)}
 .bnode-btn.confirm-no:hover{color:var(--text);border-color:var(--border2)}
+.bnode-btn.fold{color:var(--dim);border-color:var(--border);font-size:8px;padding:2px 5px}
+.bnode-btn.fold:hover{color:var(--muted);border-color:var(--border2)}
+.bnode-btn.fold.folded{color:var(--warn);border-color:rgba(254,197,20,0.35);background:rgba(254,197,20,0.06)}
+.bnode.subtree-folded > .bnode-header{opacity:0.75}
+/* version warning badge */
+#version-warn{display:none;align-items:center;gap:6px;padding:2px 10px 2px 8px;background:rgba(254,197,20,0.08);border:1px solid rgba(254,197,20,0.3);border-radius:4px;font-family:var(--font-mono);font-size:10px;color:var(--warn);white-space:nowrap;cursor:default}
+#version-warn.show{display:inline-flex}
+/* hidden file input for import */
+#import-file-input{display:none}
 </style>
 </head>
 <body>
@@ -216,11 +225,13 @@ footer a:hover{color:var(--accent)}
         <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
         <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
       </svg>
-      Trēage <span class="logo-badge">Playground v1.2.0</span>
+      Trēage <span class="logo-badge">Playground v1.3.0</span>
     </div>
     <div class="header-right">
       <span class="kbd">Ctrl+Enter</span>
       <span style="color:var(--dim);font-size:10px;font-family:var(--font-mono)">to run</span>
+      <input type="file" id="import-file-input" accept=".html" onchange="importHtml(event)">
+      <button class="btn" onclick="document.getElementById('import-file-input').click()">&#8593; Import</button>
       <button class="btn" onclick="resetToBoilerplate()">&#8635; Reset</button>
       <button class="btn btn-share" id="btn-share" onclick="toggleShareBar()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -237,6 +248,7 @@ footer a:hover{color:var(--accent)}
     <div id="status-dot"></div>
     <span id="status-text">Loading editor…</span>
     <div id="status-right">
+      <span id="version-warn" title="Imported file uses an older Treage version"></span>
       <span id="node-count"></span>
       <span id="status-time"></span>
     </div>
@@ -294,7 +306,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <footer>
-    <span>Treage Playground v1.2.0</span>
+    <span>Treage Playground v1.3.0</span>
     <span class="footer-sep">&middot;</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="footer-sep">&middot;</span>
@@ -313,9 +325,12 @@ footer a:hover{color:var(--accent)}
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   Treage Playground v1.2.0
+   Treage Playground v1.3.0
    https://github.com/rseldner/treage
 
+   v1.3.0 — feat: Import exported HTML back into playground. Non-blocking
+            version warning badge if imported file uses older treage.js.
+            Builder: collapsible subtrees via fold toggle per node.
    v1.2.0 — feat: Builder UX polish. Edge label badges now reflect YES/NO
             palette colors. Inline delete confirmation replaces browser
             confirm() dialog. Undo stack (depth 10) for node/subtree deletes.
@@ -329,6 +344,9 @@ footer a:hover{color:var(--accent)}
 /* ══════════════════════════════════════════════════════════════════════
    Treage Playground — App Logic (CM5 edition)
    ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Version constant — update this on each treage.js release ────── */
+const TREAGE_CURRENT_VERSION = '1.4.0';
 
 /* ── Default content ──────────────────────────────────────────────── */
 const DEFAULT_CONFIG = `const CONFIG = {
@@ -567,6 +585,7 @@ function switchTab(tab) {
   if (tab === 'tree'   && treeView)   setTimeout(() => treeView.refresh(), 0);
   if (tab === 'builder') {
     // parse current TREE editor → populate builder
+    foldedNodes.clear();
     builderLoadFromEditor();
     undoRefresh();
   }
@@ -628,6 +647,93 @@ function exportHtml() {
   showToast('Exported my-tree.html');
 }
 
+/* ── Import HTML ───────────────────────────────────────────────────── */
+function parseVersionFromHtml(html) {
+  // Match treage@X.Y.Z in CDN script src
+  const m = html.match(/treage@(\d+\.\d+\.\d+)/);
+  return m ? m[1] : null;
+}
+
+function versionIsOlder(imported, current) {
+  const a = imported.split('.').map(Number);
+  const b = current.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] || 0) < (b[i] || 0)) return true;
+    if ((a[i] || 0) > (b[i] || 0)) return false;
+  }
+  return false;
+}
+
+function setVersionWarn(importedVersion) {
+  const el = document.getElementById('version-warn');
+  if (!el) return;
+  if (importedVersion && versionIsOlder(importedVersion, TREAGE_CURRENT_VERSION)) {
+    el.textContent = '⚠ treage@' + importedVersion + ' — current is ' + TREAGE_CURRENT_VERSION;
+    el.classList.add('show');
+  } else {
+    el.textContent = '';
+    el.classList.remove('show');
+  }
+}
+
+function importHtml(event) {
+  const file = event.target.files[0];
+  // reset input so re-importing same file triggers change again
+  event.target.value = '';
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const html = e.target.result;
+
+    // Extract the inline <script> block that contains CONFIG and TREE.
+    // The export format is: <script>configSrc\ntreeSrc<\/script>
+    // We pull the entire script content and re-extract CONFIG/TREE by
+    // evaluating it, then re-serializing back to source via JSON round-trip.
+    const scriptMatch = html.match(/<script>([\s\S]*?const TREE\s*=[\s\S]*?)<\/script>/);
+    if (!scriptMatch) {
+      showToast('Import failed — no CONFIG/TREE script block found', 3500);
+      return;
+    }
+
+    const scriptContent = scriptMatch[1];
+
+    // Validate and extract CONFIG + TREE objects by evaluating the block
+    let extractedConfig, extractedTree;
+    try {
+      // eslint-disable-next-line no-new-func
+      const fn = new Function(scriptContent + '\n; return { CONFIG, TREE };');
+      const result = fn();
+      extractedConfig = result.CONFIG;
+      extractedTree   = result.TREE;
+    } catch(err) {
+      showToast('Import failed — parse error: ' + err.message, 4000);
+      return;
+    }
+
+    if (!extractedConfig || !extractedTree) {
+      showToast('Import failed — CONFIG or TREE missing', 3500);
+      return;
+    }
+
+    // Re-serialize to source strings matching the editor format
+    const configSrc = 'const CONFIG = ' + JSON.stringify(extractedConfig, null, 2) + ';';
+    const treeSrc   = 'const TREE = '   + JSON.stringify(extractedTree,   null, 2) + ';';
+
+    setEditorValue(configView, configSrc);
+    setEditorValue(treeView,   treeSrc);
+    history.replaceState(null, '', window.location.pathname);
+    closeShareBar();
+    scheduleRender();
+
+    const importedVersion = parseVersionFromHtml(html);
+    setVersionWarn(importedVersion);
+
+    showToast('Imported ' + file.name, 3000);
+  };
+  reader.readAsText(file);
+}
+
 /* ── Reset to boilerplate ──────────────────────────────────────────── */
 function resetToBoilerplate() {
   if (!confirm('Reset to boilerplate? Your current tree will be lost.')) return;
@@ -635,6 +741,7 @@ function resetToBoilerplate() {
   setEditorValue(treeView,   DEFAULT_TREE);
   history.replaceState(null, '', window.location.pathname);
   closeShareBar();
+  setVersionWarn(null);
   scheduleRender();
   showToast('Reset to boilerplate');
 }
@@ -789,6 +896,7 @@ document.addEventListener('keydown', e => {
 
 let builderTree = null; // in-memory tree root node
 let undoStack = [];    // snapshots pushed before destructive actions (max 10)
+const foldedNodes = new Set(); // node IDs with subtree collapsed in Builder
 
 /* ── Undo stack helpers ────────────────────────────────────────────── */
 function undoPush() {
@@ -814,6 +922,20 @@ function builderUndo() {
   builderRenderAll();
   builderFlush();
   showToast('Undo');
+}
+
+/* ── Subtree fold toggle ────────────────────────────────────────────── */
+function builderToggleFold(id, btn) {
+  if (foldedNodes.has(id)) {
+    foldedNodes.delete(id);
+    btn.classList.remove('folded');
+    btn.textContent = '▾ fold';
+  } else {
+    foldedNodes.add(id);
+    btn.classList.add('folded');
+    btn.textContent = '▸ fold';
+  }
+  builderRenderAll();
 }
 
 const NODE_TYPES = ['start','question','action','review','combined','flag','stop'];
@@ -1049,6 +1171,15 @@ function builderRenderNode(container, node, depth) {
     actions.appendChild(addBtn);
   }
 
+  if (hasChildren) {
+    const isFolded = foldedNodes.has(node.id);
+    const foldBtn = document.createElement('button');
+    foldBtn.className = 'bnode-btn fold' + (isFolded ? ' folded' : '');
+    foldBtn.textContent = isFolded ? '▸ fold' : '▾ fold';
+    foldBtn.onclick = (e) => { e.stopPropagation(); builderToggleFold(node.id, foldBtn); };
+    actions.appendChild(foldBtn);
+  }
+
   if (!isStart) {
     const delBtn = document.createElement('button');
     delBtn.className = 'bnode-btn del';
@@ -1151,9 +1282,13 @@ function builderRenderNode(container, node, depth) {
   container.appendChild(el);
 
   // render children recursively (flat layout, indented)
-  (node.children || []).forEach(child => {
-    builderRenderNode(container, child, depth + 1);
-  });
+  if (foldedNodes.has(node.id)) {
+    el.classList.add('subtree-folded');
+  } else {
+    (node.children || []).forEach(child => {
+      builderRenderNode(container, child, depth + 1);
+    });
+  }
 }
 
 /* ── Add a child node ──────────────────────────────────────────────── */
