@@ -244,3 +244,47 @@ Update this file when:
 - The CDN version tag changes
 
 Do not update this file for rendering fixes, UI tweaks, or changes that don't affect the CONFIG/TREE surface.
+
+---
+
+## agentMode (optional, agent traversal)
+
+An optional CONFIG block that controls LLM agent behavior when traversing the tree. Has no effect on the visual rendering — it is read only by traversal agents using `AGENT.md`.
+
+```js
+const CONFIG = {
+  // ... existing CONFIG fields ...
+
+  agentMode: {
+    onLowConfidence: "flag-and-continue",  // or "halt"
+    outputFormat:    "path-and-outcome",   // or "outcome-only"
+  },
+};
+```
+
+### agentMode fields
+
+| Key | Values | Default | Effect |
+|---|---|---|---|
+| `onLowConfidence` | `"flag-and-continue"` | yes | Flag low-confidence decisions inline, continue traversal |
+| `onLowConfidence` | `"halt"` | — | Stop traversal, return partial path, request clarification |
+| `outputFormat` | `"path-and-outcome"` | yes | Full path + outcome (assisted / audit mode) |
+| `outputFormat` | `"outcome-only"` | — | Outcome + flags only (automated pipeline mode) |
+
+If `agentMode` is absent, the agent uses both defaults.
+
+### When to add agentMode
+
+Add `agentMode` to CONFIG when:
+- You intend the tree to be consumed by an LLM traversal agent
+- You want to control confidence handling or output verbosity for your deployment
+- You are building an automated pipeline and need outcome-only output
+
+Leave it out if the tree is only used as a visual/interactive artifact.
+
+### Maintenance notes
+
+Update this section when:
+- New `agentMode` keys are added
+- Confidence levels or output format options change
+- The traversal behavior described in `AGENT.md` changes in a way that affects CONFIG
