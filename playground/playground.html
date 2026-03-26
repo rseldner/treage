@@ -26,10 +26,21 @@
   --yes:#3dd68c; --no:#ff6b6b; --warn:#fec514;
   --font-body:'IBM Plex Sans',sans-serif;
   --font-mono:'IBM Plex Mono',monospace;
+  --header-bg:rgba(13,15,20,0.97);
+  --preview-bg:#0d0f14;
+}
+:root[data-theme="light"] {
+  --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f4;
+  --border:#dde0e8; --border2:#c8ccd8;
+  --text:#1a1d26; --muted:#6b7080; --dim:#9298aa;
+  --accent:#009e99; --accent2:#007a76;
+  --yes:#1fa860; --no:#d94f4f; --warn:#b07d00;
+  --header-bg:rgba(244,245,247,0.97);
+  --preview-bg:#f4f5f7;
 }
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body)}
 #app{display:flex;flex-direction:column;height:100%}
-header{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;flex-shrink:0;border-bottom:1px solid var(--border);background:rgba(13,15,20,0.97);backdrop-filter:blur(10px)}
+header{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--header-bg);backdrop-filter:blur(10px)}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent)}
 .logo-badge{background:rgba(0,191,179,0.1);border:1px solid rgba(0,191,179,0.3);border-radius:4px;padding:2px 7px;font-size:10px;color:var(--accent);letter-spacing:1px}
 .header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
@@ -95,6 +106,21 @@ header{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;flex-
 .cm-variable  { color: #e8eaf0 !important; }
 .cm-variable-2 { color: #e8eaf0 !important; }
 .cm-def       { color: #a87ff0 !important; }
+/* Syntax colors — light mode overrides */
+[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0,0,0,0.03) !important; }
+[data-theme="light"] .CodeMirror-activeline-gutter .CodeMirror-linenumber { background: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .cm-keyword   { color: #c0392b !important; }
+[data-theme="light"] .cm-string    { color: #27ae60 !important; }
+[data-theme="light"] .cm-string-2  { color: #27ae60 !important; }
+[data-theme="light"] .cm-number    { color: #e67e22 !important; }
+[data-theme="light"] .cm-atom      { color: #6b7080 !important; }
+[data-theme="light"] .cm-property  { color: #007a76 !important; }
+[data-theme="light"] .cm-comment   { color: #9298aa !important; font-style: italic; }
+[data-theme="light"] .cm-punctuation { color: #9298aa !important; }
+[data-theme="light"] .cm-operator  { color: #9298aa !important; }
+[data-theme="light"] .cm-variable  { color: #1a1d26 !important; }
+[data-theme="light"] .cm-variable-2 { color: #1a1d26 !important; }
+[data-theme="light"] .cm-def       { color: #7c3aed !important; }
 /* Fold gutter */
 .CodeMirror-foldgutter { width: 14px; }
 .CodeMirror-foldgutter-open,
@@ -121,10 +147,10 @@ header{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;flex-
 #preview-bar{display:flex;align-items:center;gap:10px;padding:0 14px;height:38px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface);font-family:var(--font-mono);font-size:10px;color:var(--dim)}
 .preview-label{font-size:10.5px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted)}
 .preview-dims{margin-left:auto;color:var(--dim);font-size:10px}
-#preview-frame{flex:1;border:none;background:#0d0f14}
+#preview-frame{flex:1;border:none;background:var(--preview-bg)}
 #resize-handle{width:4px;flex-shrink:0;cursor:col-resize;background:var(--border);transition:background 0.15s;position:relative;z-index:10}
 #resize-handle:hover,#resize-handle.dragging{background:var(--accent)}
-footer{height:28px;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:0 16px;border-top:1px solid var(--border);background:rgba(13,15,20,0.97);font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+footer{height:28px;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:0 16px;border-top:1px solid var(--border);background:var(--header-bg);font-family:var(--font-mono);font-size:10px;color:var(--dim)}
 footer a{color:var(--dim);text-decoration:none;transition:color 0.15s}
 footer a:hover{color:var(--accent)}
 .footer-sep{color:var(--border)}
@@ -234,12 +260,13 @@ footer a:hover{color:var(--accent)}
         <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
         <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
       </svg>
-      Trēage <span class="logo-badge">Playground v1.3.1</span>
+      Trēage <span class="logo-badge">Playground v1.3.2</span>
     </div>
     <div class="header-right">
       <span class="kbd">Ctrl+Enter</span>
       <span style="color:var(--dim);font-size:10px;font-family:var(--font-mono)">to run</span>
       <input type="file" id="import-file-input" accept=".html" onchange="importHtml(event)">
+      <button class="btn" id="btn-theme" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
       <button class="btn" onclick="document.getElementById('import-file-input').click()">&#8593; Import</button>
       <button class="btn" onclick="resetToBoilerplate()">&#8635; Reset</button>
       <button class="btn btn-share" id="btn-share" onclick="toggleShareBar()">
@@ -335,7 +362,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <footer>
-    <span>Treage Playground v1.3.1</span>
+    <span>Treage Playground v1.3.2</span>
     <span class="footer-sep">&middot;</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="footer-sep">&middot;</span>
@@ -354,9 +381,11 @@ footer a:hover{color:var(--accent)}
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   Treage Playground v1.3.1
+   Treage Playground v1.3.2
    https://github.com/rseldner/treage
 
+   v1.3.2 — feat: light/dark mode toggle for playground chrome. Persists
+            via localStorage. CM5 syntax colors adapt to both themes.
    v1.3.1 — feat: Builder CONFIG panel — title, subtitle, and icon editable
             directly in the Builder tab. Collapses like a node card.
             Writes back to the CONFIG editor with toast warning if the
@@ -581,6 +610,25 @@ function setEditorValue(cm, text) {
 
 function countNodes(treeSrc) {
   return (treeSrc.match(/\bid\s*:/g) || []).length;
+}
+
+/* ── Theme toggle ───────────────────────────────────────────────────── */
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  applyTheme(next);
+  try { localStorage.setItem('treage-playground-theme', next); } catch(e) {}
+}
+
+function applyTheme(theme) {
+  const btn = document.getElementById('btn-theme');
+  if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    if (btn) btn.textContent = '🌙';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    if (btn) btn.textContent = '☀';
+  }
 }
 
 /* ── Status ────────────────────────────────────────────────────────── */
@@ -894,6 +942,12 @@ document.addEventListener('keydown', e => {
 
 /* ── Init ──────────────────────────────────────────────────────────── */
 (function init() {
+  // restore saved theme before rendering
+  try {
+    const saved = localStorage.getItem('treage-playground-theme');
+    if (saved) applyTheme(saved);
+  } catch(e) {}
+
   let initConfig = DEFAULT_CONFIG;
   let initTree   = DEFAULT_TREE;
   let fromHash   = false;
