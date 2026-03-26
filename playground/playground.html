@@ -209,6 +209,15 @@ footer a:hover{color:var(--accent)}
 #version-warn.show{display:inline-flex}
 /* hidden file input for import */
 #import-file-input{display:none}
+/* builder config panel */
+#builder-config{background:var(--surface);border:1px solid var(--border);border-radius:6px;flex-shrink:0;overflow:hidden}
+#builder-config-header{font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--dim);padding:7px 10px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;min-height:36px}
+#builder-config-header:hover{background:rgba(255,255,255,0.03)}
+#builder-config-chevron{font-size:9px;color:var(--dim);transition:transform 0.15s;flex-shrink:0;width:10px;text-align:center}
+#builder-config.open #builder-config-chevron{transform:rotate(90deg)}
+#builder-config-fields{display:none;grid-template-columns:1fr 1fr;gap:8px 12px;padding:10px 12px 12px;border-top:1px solid var(--border);background:var(--surface2)}
+#builder-config.open #builder-config-fields{display:grid}
+#builder-config-fields .bfield.full{grid-column:1/-1}
 </style>
 </head>
 <body>
@@ -225,7 +234,7 @@ footer a:hover{color:var(--accent)}
         <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
         <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
       </svg>
-      Trēage <span class="logo-badge">Playground v1.3.0</span>
+      Trēage <span class="logo-badge">Playground v1.3.1</span>
     </div>
     <div class="header-right">
       <span class="kbd">Ctrl+Enter</span>
@@ -285,6 +294,26 @@ footer a:hover{color:var(--accent)}
           <span>Tree builder — add and edit nodes without touching JS</span>
           <span class="editor-hint">Changes sync to TREE tab automatically</span>
         </div>
+        <div id="builder-config" class="open">
+          <div id="builder-config-header" onclick="document.getElementById('builder-config').classList.toggle('open')">
+            <span id="builder-config-chevron">▶</span>
+            CONFIG
+          </div>
+          <div id="builder-config-fields">
+            <div class="bfield full">
+              <label>Title</label>
+              <input type="text" id="bcfg-title" placeholder="My Decision Tree" />
+            </div>
+            <div class="bfield full">
+              <label>Subtitle</label>
+              <input type="text" id="bcfg-subtitle" placeholder="A short description…" />
+            </div>
+            <div class="bfield">
+              <label>Icon</label>
+              <input type="text" id="bcfg-icon" placeholder="🌿" />
+            </div>
+          </div>
+        </div>
         <div id="builder-scroll"></div>
         <div id="builder-footer">
           <span class="bfoot-label">Builder syncs to TREE on every change</span>
@@ -306,7 +335,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <footer>
-    <span>Treage Playground v1.3.0</span>
+    <span>Treage Playground v1.3.1</span>
     <span class="footer-sep">&middot;</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="footer-sep">&middot;</span>
@@ -325,9 +354,13 @@ footer a:hover{color:var(--accent)}
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   Treage Playground v1.3.0
+   Treage Playground v1.3.1
    https://github.com/rseldner/treage
 
+   v1.3.1 — feat: Builder CONFIG panel — title, subtitle, and icon editable
+            directly in the Builder tab. Collapses like a node card.
+            Writes back to the CONFIG editor with toast warning if the
+            field format isn't detected.
    v1.3.0 — feat: Import exported HTML back into playground. Non-blocking
             version warning badge if imported file uses older treage.js.
             Builder: collapsible subtrees via fold toggle per node.
@@ -587,6 +620,7 @@ function switchTab(tab) {
     // parse current TREE editor → populate builder
     foldedNodes.clear();
     builderLoadFromEditor();
+    builderConfigLoad();
     undoRefresh();
   }
 }
@@ -877,6 +911,13 @@ document.addEventListener('keydown', e => {
   configView = createEditor('cm-config', initConfig, scheduleRender);
   treeView   = createEditor('cm-tree',   initTree,   scheduleRender);
 
+  // Builder CONFIG panel field listeners
+  ['title', 'subtitle', 'icon'].forEach(key => {
+    const el = document.getElementById('bcfg-' + key);
+    if (!el) return;
+    el.addEventListener('input', () => builderConfigFlushField(key, el.value));
+  });
+
   setStatus('loading', fromHash ? 'Loading shared tree…' : 'Loading…');
   setTimeout(() => {
     doRender();
@@ -897,6 +938,44 @@ document.addEventListener('keydown', e => {
 let builderTree = null; // in-memory tree root node
 let undoStack = [];    // snapshots pushed before destructive actions (max 10)
 const foldedNodes = new Set(); // node IDs with subtree collapsed in Builder
+
+/* ── Builder CONFIG panel: read + write title/subtitle/icon ────────── */
+function builderConfigLoad() {
+  try {
+    const fn = new Function(getConfig() + '; return { title: CONFIG.title, subtitle: CONFIG.subtitle, icon: CONFIG.icon };');
+    const vals = fn();
+    const t = document.getElementById('bcfg-title');
+    const s = document.getElementById('bcfg-subtitle');
+    const i = document.getElementById('bcfg-icon');
+    if (t) t.value = vals.title    || '';
+    if (s) s.value = vals.subtitle || '';
+    if (i) i.value = vals.icon     || '';
+  } catch (e) { /* CONFIG parse error — fields stay blank */ }
+}
+
+function builderConfigFlushField(key, val) {
+  // Targeted regex replace of  key: "value"  or  key: 'value'
+  // Handles optional whitespace around colon and between key and quote
+  const src = getConfig();
+  const re = new RegExp(`(${key}\\s*:\\s*)(['"\`])[^'"\`\\n]*\\2`);
+  const quote = '"';
+  const escaped = val.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const updated = src.replace(re, `$1${quote}${escaped}${quote}`);
+  if (updated === src) {
+    showToast(`${key} not updated — edit CONFIG tab directly`, 3500);
+    return;
+  }
+  setEditorValue(configView, updated);
+  // verify the round-trip actually took
+  try {
+    const fn = new Function(updated + `; return CONFIG.${key};`);
+    const result = fn();
+    if (result !== val) showToast(`${key} not updated — edit CONFIG tab directly`, 3500);
+  } catch (e) {
+    showToast(`${key} not updated — edit CONFIG tab directly`, 3500);
+  }
+  scheduleRender();
+}
 
 /* ── Undo stack helpers ────────────────────────────────────────────── */
 function undoPush() {
