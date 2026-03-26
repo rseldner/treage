@@ -346,7 +346,7 @@ footer a:hover{color:var(--accent)}
    ══════════════════════════════════════════════════════════════════════ */
 
 /* ── Version constant — update this on each treage.js release ────── */
-const TREAGE_CURRENT_VERSION = '1.4.0';
+const TREAGE_CURRENT_VERSION = '1.5.0';
 
 /* ── Default content ──────────────────────────────────────────────── */
 const DEFAULT_CONFIG = `const CONFIG = {
@@ -597,7 +597,7 @@ function buildPreviewHTML(configSrc, treeSrc) {
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">' +
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"><\/script>' +
     '<script>' + configSrc + '\n' + treeSrc + '<\/script>' +
-    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js"><\/script>' +
+    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"><\/script>' +
     '</head><body></body></html>';
 }
 
@@ -1021,6 +1021,14 @@ function builderSerialize() {
   return 'const TREE = ' + serializeNode(builderTree, 0) + ';';
 }
 
+/* ── Notify preview iframe to pan+highlight a node ─────────────────── */
+function builderNodeFocused(id) {
+  const frame = document.getElementById('preview-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'treage:focusNode', id }, '*');
+  }
+}
+
 /* ── Push serialized tree into the CM5 editor + trigger render ─────── */
 function builderFlush() {
   const src = builderSerialize();
@@ -1120,7 +1128,11 @@ function builderRenderNode(container, node, depth) {
   // header
   const header = document.createElement('div');
   header.className = 'bnode-header';
-  header.onclick = () => el.classList.toggle('open');
+  header.onclick = () => {
+    const opening = !el.classList.contains('open');
+    el.classList.toggle('open');
+    if (opening) builderNodeFocused(node.id);
+  };
 
   // indent pips
   if (depth > 0) {
@@ -1275,6 +1287,7 @@ function builderRenderNode(container, node, depth) {
         // restore open state on the re-rendered node
         const reEl = document.querySelector(`.bnode[data-id="${node.id}"]`);
         if (reEl) reEl.classList.add('open');
+        builderNodeFocused(node.id);
         return;
       }
       builderFlush();
@@ -1310,6 +1323,7 @@ function builderAddChild(parentId) {
   setTimeout(() => {
     const el = document.querySelector(`.bnode[data-id="${child.id}"]`);
     if (el) { el.classList.add('open'); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    builderNodeFocused(child.id);
   }, 50);
   showToast('Child node added');
 }

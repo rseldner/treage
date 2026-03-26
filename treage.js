@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.4.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.5.0 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,10 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.5.0 — feat: playground builder focus sync — when a node is expanded
+            in the Builder tab, treage.js listens for a postMessage and
+            pans to the corresponding node in the live tree preview, then
+            applies a brief accent-ring pulse so the node is easy to spot.
    v1.4.0 — feat: keyboard navigation in tree view — arrow keys navigate the
             tree. Left/Right cycle between sibling edge choices at the current
             walk position. Down advances the walk along the focused edge. Up
@@ -579,7 +583,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.4.0</span>
+    <span>Treage v1.5.0</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -1877,6 +1881,39 @@ function init() {
   renderFullTree(treeG, treeLayout);
   setTimeout(() => fitView(500), 100);
   window.addEventListener('resize', () => fitView(300));
+
+  /* ── Playground builder focus sync ── */
+  window.addEventListener('message', (event) => {
+    if (!event.data || event.data.type !== 'treage:focusNode') return;
+    if (!treeLayout) return;
+    const ln = treeLayout.nodes.find(n => n.data.id === event.data.id);
+    if (!ln) return;
+    panToNode(ln, 350);
+    setTimeout(() => {
+      // accent-ring pulse on the node card — wider glow, fades out over 2s
+      treeG.selectAll('.tg-tree-node').each(function(d) {
+        if (d.data.id !== event.data.id) return;
+        const div = d3.select(this).select('div');
+        div.style('transition', 'none')
+           .style('outline', `2px solid var(--color-accent, #00bfb3)`)
+           .style('outline-offset', '-2px')
+           .style('box-shadow', '0 0 0 8px rgba(0,191,179,0.35)');
+        // let the browser paint the full pulse, then enable transition for fade
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            div.style('transition', 'outline 0.6s ease, outline-offset 0.6s ease, box-shadow 0.6s ease');
+            setTimeout(() => {
+              div.style('outline', null)
+                 .style('outline-offset', null)
+                 .style('box-shadow', null);
+              // clean up transition after fade completes
+              setTimeout(() => div.style('transition', null), 650);
+            }, 2000);
+          });
+        });
+      });
+    }, 380);
+  });
 
   deserializePath();
   if (iState.choices.length > 0) {
