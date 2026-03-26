@@ -59,7 +59,7 @@ Remove unused default types from CONFIG to keep the legend clean.
 
 ### Step 4 — Generate the file
 
-Produce a complete, self-contained HTML file using the template in [assets/starter-template.html](assets/starter-template.html) as the base. Always use:
+Produce a complete, self-contained HTML file modelled on [assets/boilerplate.html](assets/boilerplate.html), which documents every feature with inline comments. Always use:
 - D3.js from `https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js`
 - Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js`
 - Script load order: D3 → CONFIG+TREE script block → treage.js (strict — do not reorder)

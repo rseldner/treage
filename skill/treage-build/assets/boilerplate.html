@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treage Boilerplate — Full Feature Reference</title>
+
+<!-- ─────────────────────────────────────────────────────────────
+     TREAGE BOILERPLATE
+     This file is a complete reference for every Treage feature.
+     Copy it, rename it, gut the TREE data, and build your own.
+
+     QUICK START
+     ───────────
+     1. Edit CONFIG.title, CONFIG.subtitle, CONFIG.icon
+     2. Add / remove / rename outcome types in CONFIG.nodeTypes
+     3. Replace TREE with your own questions and outcomes
+     4. Done — the engine handles everything else
+
+     UPGRADING TREAGE
+     ────────────────
+     Replace treage.js with the new version. Your CONFIG and TREE
+     are untouched. Content renders exactly as before.
+
+     LOCAL:  <script src="../treage.js">
+     CDN:    <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js">
+───────────────────────────────────────────────────────────────── -->
+
+<!-- ① D3 — required by Treage, must load before treage.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   ① CONFIG
+   ═══════════════════════════════════════════════════════════════
+
+   The CONFIG object controls everything visual and structural
+   about your tree. It has four sections:
+
+     META        — title, subtitle, header icon SVG
+     PALETTE     — dark theme colors (required)
+     PALETTELIGHT — light theme colors (required)
+     FONTS       — body and monospace font families
+     NODETYPES   — one entry per outcome category
+
+   ─────────────────────────────────────────────────────────────
+   PALETTE KEYS (same shape required for both dark and light)
+   ─────────────────────────────────────────────────────────────
+   bg            Canvas / page background
+   surface       Card and control backgrounds
+   border        Default border color
+   text          Primary text color
+   muted         Secondary / subdued text
+   dim           Eyebrow labels and placeholders
+   accent        Brand accent — hover states, active controls,
+                 progress dots, breadcrumb highlights
+   edgeYes       Color for YES edges and YES answer buttons
+   edgeNo        Color for NO edges and NO answer buttons
+   edgeDefault   Color for edges with custom or no labels
+   gridLine      Grid overlay line color (rgba recommended)
+   headerBg      Header and footer background (semi-transparent)
+
+   ─────────────────────────────────────────────────────────────
+   NODE TYPE KEYS
+   ─────────────────────────────────────────────────────────────
+   label         Short string shown in the eyebrow and as the
+                 outcome badge in interactive mode
+   legendLabel   Text shown in the header legend pill.
+                 Set to null to hide the type from the legend.
+   accent        Dot color used in the legend pill
+   dark {}       Styles applied in dark mode
+   light {}      Styles applied in light mode
+
+   Inside dark / light:
+     bg           Card background. Use rgba() for transparency.
+     border       CSS border shorthand
+     borderLeft   Left accent stripe — use a slightly more opaque
+                  version of the same color as border
+     titleColor   Main title text color
+     hintColor    Italic hint / gate text color
+     eyebrowColor Small label above the title
+
+   RESERVED TYPES — do not remove "start" or "question":
+     start        The root node. Exactly one per tree.
+     question     All branching / internal nodes.
+
+   ─────────────────────────────────────────────────────────────
+   ADDING A NEW OUTCOME TYPE
+   ─────────────────────────────────────────────────────────────
+   1. Add a new key to CONFIG.nodeTypes (copy an existing block)
+   2. Give it a distinct accent color
+   3. Provide both dark{} and light{} sub-objects
+   4. Use the new key as `type` on any leaf node in TREE
+   ═══════════════════════════════════════════════════════════ */
+const CONFIG = {
+
+  /* ── Meta ──────────────────────────────────────────────────
+     title      Shown in the browser tab and header h1
+     subtitle   Shown below the title in the header
+     icon       Raw SVG string. The engine injects it directly.
+                Size your viewBox to fill a ~34×34 area.
+                Use "" to show no icon.
+  ────────────────────────────────────────────────────────── */
+  title:    "Treage Boilerplate",
+  subtitle: "Full feature reference — copy, rename, and build.",
+  icon: `<svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+    <circle cx="20" cy="20" r="19" stroke="#00bfb3" stroke-width="1.5"/>
+    <circle cx="20" cy="10" r="3" fill="#00bfb3"/>
+    <circle cx="11" cy="28" r="3" fill="#00bfb3"/>
+    <circle cx="29" cy="28" r="3" fill="#00bfb3"/>
+    <line x1="20" y1="13" x2="20" y2="20" stroke="#00bfb3" stroke-width="1.5"/>
+    <line x1="20" y1="20" x2="11" y2="25" stroke="#00bfb3" stroke-width="1.5"/>
+    <line x1="20" y1="20" x2="29" y2="25" stroke="#00bfb3" stroke-width="1.5"/>
+    <circle cx="20" cy="20" r="2.5" fill="#00bfb3"/>
+  </svg>`,
+
+  /* ── Dark palette (default theme) ─────────────────────── */
+  palette: {
+    bg:          "#0d0f14",
+    surface:     "#13161e",
+    border:      "#252a38",
+    text:        "#e8eaf0",
+    muted:       "#7a8099",
+    dim:         "#4a5068",
+    accent:      "#00bfb3",
+    edgeYes:     "#3dd68c",
+    edgeNo:      "#ff6b6b",
+    edgeDefault: "#3a4158",
+    gridLine:    "rgba(255,255,255,0.018)",
+    headerBg:    "rgba(13,15,20,0.95)",
+  },
+
+  /* ── Light palette ─────────────────────────────────────── */
+  paletteLight: {
+    bg:          "#f4f5f7",
+    surface:     "#ffffff",
+    border:      "#dde0e8",
+    text:        "#1a1d26",
+    muted:       "#6b7080",
+    dim:         "#9298aa",
+    accent:      "#009e99",
+    edgeYes:     "#1fa860",
+    edgeNo:      "#d94f4f",
+    edgeDefault: "#b0b6c6",
+    gridLine:    "rgba(0,0,0,0.045)",
+    headerBg:    "rgba(244,245,247,0.97)",
+  },
+
+  /* ── Fonts ─────────────────────────────────────────────── */
+  fonts: {
+    body: "'IBM Plex Sans', sans-serif",
+    mono: "'IBM Plex Mono', monospace",
+  },
+
+  /* ── Node types ────────────────────────────────────────── */
+  nodeTypes: {
+
+    /* RESERVED — keep start and question, do not rename them */
+
+    start: {
+      legendLabel: null, accent: "#00bfb3",
+      dark:  { bg: "linear-gradient(135deg,#00bfb3,#009e99)", border: "none", borderLeft: null, titleColor: "#0d0f14" },
+      light: { bg: "linear-gradient(135deg,#00bfb3,#009e99)", border: "none", borderLeft: null, titleColor: "#ffffff" },
+    },
+
+    question: {
+      legendLabel: null, accent: "#3a4158",
+      dark:  { bg: "#13161e", border: "1px solid #252a38", borderLeft: "3px solid #252a38", titleColor: "#e8eaf0", hintColor: "#7a8099", eyebrowColor: "#4a5068" },
+      light: { bg: "#ffffff", border: "1px solid #dde0e8", borderLeft: "3px solid #c4c9d8", titleColor: "#1a1d26", hintColor: "#6b7080", eyebrowColor: "#9298aa" },
+    },
+
+    /* OUTCOME TYPES — edit, rename, add, or remove freely ── */
+
+    /* Teal — positive / "go do this" outcome */
+    action: {
+      label: "Action", legendLabel: "Action",
+      accent: "#00bfb3",
+      dark:  { bg: "rgba(0,191,179,0.06)",  border: "1px solid rgba(0,191,179,0.3)",   borderLeft: "3px solid rgba(0,191,179,0.6)",  titleColor: "rgba(0,191,179,0.9)",  hintColor: "rgba(0,191,179,0.5)",  eyebrowColor: "#00bfb3" },
+      light: { bg: "rgba(0,158,153,0.05)",  border: "1px solid rgba(0,158,153,0.35)",  borderLeft: "3px solid rgba(0,158,153,0.65)", titleColor: "#007a76",              hintColor: "#009e99",              eyebrowColor: "#007a76" },
+    },
+
+    /* Pink — needs human review or investigation */
+    review: {
+      label: "Review", legendLabel: "Review",
+      accent: "#f04e98",
+      dark:  { bg: "rgba(240,78,152,0.06)", border: "1px solid rgba(240,78,152,0.3)",  borderLeft: "3px solid rgba(240,78,152,0.6)", titleColor: "rgba(240,78,152,0.9)", hintColor: "rgba(240,78,152,0.5)", eyebrowColor: "#f04e98" },
+      light: { bg: "rgba(240,78,152,0.04)", border: "1px solid rgba(200,50,120,0.3)",  borderLeft: "3px solid rgba(200,50,120,0.6)", titleColor: "#b5306e",              hintColor: "#c8407e",              eyebrowColor: "#b5306e" },
+    },
+
+    /* Yellow — do both things / combined path */
+    combined: {
+      label: "Combined", legendLabel: "Combined",
+      accent: "#fec514",
+      dark:  { bg: "rgba(254,197,20,0.06)", border: "1px solid rgba(254,197,20,0.3)",  borderLeft: "3px solid rgba(254,197,20,0.6)", titleColor: "rgba(254,197,20,0.9)", hintColor: "rgba(254,197,20,0.5)", eyebrowColor: "#fec514" },
+      light: { bg: "rgba(200,150,0,0.05)",  border: "1px solid rgba(180,130,0,0.3)",   borderLeft: "3px solid rgba(180,130,0,0.6)",  titleColor: "#8a6200",              hintColor: "#b07d00",              eyebrowColor: "#8a6200" },
+    },
+
+    /* Purple — flag for follow-up or known issue */
+    flag: {
+      label: "Flag", legendLabel: "Flag",
+      accent: "#a87ff0",
+      dark:  { bg: "rgba(168,127,240,0.06)", border: "1px solid rgba(168,127,240,0.3)", borderLeft: "3px solid rgba(168,127,240,0.6)", titleColor: "rgba(168,127,240,0.9)", hintColor: "rgba(168,127,240,0.5)", eyebrowColor: "#a87ff0" },
+      light: { bg: "rgba(130,90,210,0.05)",  border: "1px solid rgba(130,90,210,0.3)",  borderLeft: "3px solid rgba(130,90,210,0.6)",  titleColor: "#6236b5",               hintColor: "#7a50c8",               eyebrowColor: "#6236b5" },
+    },
+
+    /* Grey — no action needed / stop here */
+    stop: {
+      label: "No Action", legendLabel: "No Action",
+      accent: "#7a8099",
+      dark:  { bg: "rgba(122,128,153,0.05)", border: "1px solid rgba(122,128,153,0.25)", borderLeft: "3px solid rgba(122,128,153,0.4)", titleColor: "rgba(122,128,153,0.85)", hintColor: "rgba(122,128,153,0.5)", eyebrowColor: "#7a8099" },
+      light: { bg: "rgba(100,110,140,0.04)", border: "1px solid rgba(100,110,140,0.25)", borderLeft: "3px solid rgba(100,110,140,0.4)", titleColor: "#505870",                hintColor: "#7a8099",               eyebrowColor: "#606880" },
+    },
+  },
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ② TREE
+   ═══════════════════════════════════════════════════════════════
+
+   The TREE object defines the structure and content of your
+   decision tree. Nest children arrays to add depth.
+
+   ─────────────────────────────────────────────────────────────
+   NODE FIELDS
+   ─────────────────────────────────────────────────────────────
+   id          {string}  Unique. No spaces or slashes.
+                         Convention: "q1", "q2a", "out-approve"
+
+   type        {string}  One of the keys in CONFIG.nodeTypes.
+                         Use "question" for all branching nodes.
+                         Use any outcome key for leaf nodes.
+
+   eyebrow     {string}  Small label above the title.
+                         Questions:  "Question 1", "Step 2", etc.
+                         Outcomes:   category label, e.g. "Action Required"
+
+   isNew       {bool}    Optional. Renders a yellow NEW badge next
+                         to the eyebrow. Useful for recently added
+                         branches. Remove once the novelty wears off.
+
+   title       {string}  The main text of the node. For questions,
+                         phrase as a clear yes/no question.
+                         For outcomes, describe the recommended action.
+
+   hint        {string}  Optional. Italic subtext shown below the
+                         title. Use for clarifying conditions, scope
+                         boundaries, or ⊘ gate checks on outcomes.
+                         Set to null to omit.
+
+   edgeLabel   {string}  Label on the edge FROM the parent TO this node.
+                         Standard values: "YES" | "NO"
+                         Custom values:   "LOW" | "MED" | "HIGH"
+                                          "→ Path A" | "SKIP" | etc.
+                         Use "" or omit on the first question node.
+                         Custom labels get the edgeDefault color.
+
+   children    {array}   Nested child nodes. Each child becomes an
+                         answer button in interactive mode.
+                         Omit or use [] on outcome (leaf) nodes.
+                         You can have 2, 3, or 4 children per question.
+
+   ─────────────────────────────────────────────────────────────
+   TREE SHAPE TIPS
+   ─────────────────────────────────────────────────────────────
+   - The root node must have type "start" and exactly one child
+     (the first question). Its title is just "Start".
+   - Every non-root node needs an edgeLabel.
+   - Outcome nodes have no children (or children: []).
+   - The engine auto-sizes node cards based on text length.
+   - Long titles wrap; very long hints push the card taller.
+     Keep titles under ~120 chars and hints under ~160 chars
+     for the best layout in the full-tree view.
+   ═══════════════════════════════════════════════════════════ */
+const TREE = {
+  /* ── Root node — always type "start", always one child ── */
+  id: "start",
+  type: "start",
+  title: "Start",
+  children: [
+
+    /* ── First question ─────────────────────────────────────
+       edgeLabel is "" or omitted on the first question because
+       there is no edge from Start that needs a label.
+    ──────────────────────────────────────────────────────── */
+    {
+      id: "q1",
+      type: "question",
+      eyebrow: "Question 1",
+      title: "Replace this with your first yes/no question.",
+      hint: "Optional: add a clarifying condition or scope boundary here.",
+      edgeLabel: "",
+      children: [
+
+        /* ── YES branch from q1 ─────────────────────────── */
+        {
+          id: "q2",
+          type: "question",
+          eyebrow: "Question 2",
+          title: "If YES — ask a follow-up question to narrow the path further.",
+          hint: "Hints help users understand what 'yes' actually means here.",
+          edgeLabel: "YES",
+          children: [
+
+            /* ── YES branch from q2 → outcome ──────────── */
+            {
+              id: "out-action",
+              type: "action",            /* teal — positive outcome */
+              eyebrow: "Action Required",
+              title: "Describe the concrete action the user should take on this path.",
+              hint: "⊘ Gate: add a stop condition here if needed. E.g. 'Only if the change is < 50 lines.'",
+              edgeLabel: "YES",
+              children: []
+            },
+
+            /* ── NO branch from q2 → outcome ───────────── */
+            {
+              id: "out-review",
+              type: "review",            /* pink — needs investigation */
+              eyebrow: "Needs Review",
+              title: "Describe what should be reviewed, who should do it, and by when.",
+              hint: "⊘ Gate: Does this genuinely need review, or can it be handled inline?",
+              edgeLabel: "NO",
+              children: []
+            }
+          ]
+        },
+
+        /* ── NO branch from q1 ──────────────────────────── */
+        {
+          id: "q3",
+          type: "question",
+          eyebrow: "Question 3",
+          /* isNew renders a yellow NEW badge — remove once the branch is established */
+          isNew: true,
+          title: "If NO — ask a different follow-up. This branch was recently added.",
+          hint: "The isNew badge on this node is set with isNew: true. Remove it when the branch matures.",
+          edgeLabel: "NO",
+          children: [
+
+            /* ── YES branch from q3 ─────────────────────── */
+            {
+              id: "q4",
+              type: "question",
+              eyebrow: "Question 4",
+              title: "Trees can go as deep as needed. Add another level here.",
+              hint: "Each additional level adds a depth ring in interactive mode's progress dots.",
+              edgeLabel: "YES",
+              children: [
+
+                /* ── YES → combined outcome ─────────────── */
+                {
+                  id: "out-combined",
+                  type: "combined",      /* yellow — do both things */
+                  eyebrow: "Combined Path",
+                  title: "Sometimes two actions are both required. Describe what the user should do on both tracks.",
+                  hint: "⊘ Gate: Are both actions truly necessary, or is one sufficient?",
+                  edgeLabel: "YES",
+                  children: []
+                },
+
+                /* ── NO → flag outcome ───────────────────── */
+                {
+                  id: "out-flag",
+                  type: "flag",          /* purple — flag for follow-up */
+                  eyebrow: "Flag for Follow-up",
+                  title: "Flag this case for later investigation. Describe what to track and who owns it.",
+                  hint: null,            /* null omits the hint entirely */
+                  edgeLabel: "NO",
+                  children: []
+                }
+              ]
+            },
+
+            /* ── NO branch from q3 → stop outcome ──────── */
+            {
+              id: "out-stop",
+              type: "stop",              /* grey — no action needed */
+              eyebrow: "No Action Needed",
+              title: "Nothing to do here. Describe why this path requires no further action.",
+              hint: "⊘ Stop gate: Would another person independently look this up in 6 months? If not — stop here.",
+              edgeLabel: "NO",
+              children: []
+            }
+          ]
+        }
+
+      ]
+    }
+  ]
+};
+
+/* ─────────────────────────────────────────────────────────────
+   That's it. Everything below this point is handled by the
+   Treage engine. Do not add code after this comment.
+───────────────────────────────────────────────────────────── */
+</script>
+
+<!-- ③ Treage engine — one directory up from examples/ -->
+<!-- Local:   <script src="../treage.js"></script> -->
+<!-- CDN: -->      <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js"></script> -->
+
+</body>
+</html>
