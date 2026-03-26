@@ -2,7 +2,7 @@
 > Engine: v1.4.0 | Skill: v1.0.0 | Last updated: 2026-03-24
 >
 > Paste the contents of this file into the system prompt / instructions field of any LLM interface.
-> Source of truth: https://github.com/rseldner/treage/tree/main/skill
+> Source of truth: https://github.com/rseldner/treage/tree/main/skill/treage-build
 
 ---
 
