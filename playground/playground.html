@@ -1268,8 +1268,14 @@ function builderRenderNode(container, node, depth) {
         }
       }
       if (def.key === 'type') {
-        badge.className = 'bnode-type-badge type-' + val;
-        badge.textContent = val;
+        // re-render so action buttons (+ child) reflect the new type immediately
+        n.type = val;
+        builderFlush();
+        builderRenderAll();
+        // restore open state on the re-rendered node
+        const reEl = document.querySelector(`.bnode[data-id="${node.id}"]`);
+        if (reEl) reEl.classList.add('open');
+        return;
       }
       builderFlush();
     });
