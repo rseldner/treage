@@ -7,7 +7,7 @@ The skill only needs a version bump when the **generatable surface** changes —
 an LLM needs to know to produce valid CONFIG or TREE objects.
 
 ```
-Skill v1.0.0 → compatible with Treage engine v1.4.0
+Skill v1.1.0 → compatible with Treage engine v1.5.0
 ```
 
 ---
@@ -26,7 +26,7 @@ Skill v1.0.0 → compatible with Treage engine v1.4.0
 - Add new feature to the "Features by version" table
 - Update the CDN URL version tag
 
-### Update `assets/starter-template.html`:
+### Update `assets/boilerplate.html`:
 - Bump the CDN script tag to the new version tag
 - Add any new required CONFIG fields with sensible defaults
 
@@ -56,7 +56,7 @@ Skill v1.0.0 → compatible with Treage engine v1.4.0
 3. If none: no skill update needed. Done.
 4. If yes:
    - [ ] Update `references/grammar.md` — schema tables, features table
-   - [ ] Update `assets/starter-template.html` — CDN tag, any new fields
+   - [ ] Update `assets/boilerplate.html` — CDN tag, any new fields
    - [ ] Update examples if needed
    - [ ] Update `SKILL.md` — failure modes, `treage-engine` frontmatter field
    - [ ] Bump skill version in `SKILL.md` frontmatter (patch for minor additions, minor for structural changes)
@@ -69,3 +69,4 @@ Skill v1.0.0 → compatible with Treage engine v1.4.0
 | Skill version | Engine version | Notes |
 |---|---|---|
 | 1.0.0 | 1.4.0 | Initial release |
+| 1.1.0 | 1.5.0 | Workflow shape guidance (Step 2a), schema source note, three new failure modes, open issues section referencing #27 #28 #29 |

@@ -1,5 +1,5 @@
 # Treage Grammar Reference
-> Engine: v1.4.0 | Last updated: 2026-03-24
+> Engine: v1.5.0 | Last updated: 2026-03-28
 
 This document is the authoritative reference for the CONFIG and TREE object schemas.
 It is loaded into context when the Treage skill is active.
@@ -26,7 +26,7 @@ It is loaded into context when the Treage skill is active.
   </script>
 
   <!-- 3. Treage engine — must load last -->
-  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
 </head>
 <body></body>
 </html>
@@ -230,6 +230,7 @@ const TREE = {
 | Node search | 1.3.0 | (automatic, "/" key) |
 | Copy path summary | 1.3.2 | (automatic toolbar button) |
 | Keyboard navigation | 1.4.0 | (automatic, arrow keys) |
+| Builder focus sync | 1.5.0 | (automatic, postMessage highlight) |
 
 All features listed are automatic — no TREE/CONFIG changes needed to enable them.
 

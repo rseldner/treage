@@ -1,5 +1,5 @@
 # Treage Decision Tree Generator — System Prompt
-> Engine: v1.4.0 | Skill: v1.0.0 | Last updated: 2026-03-24
+> Engine: v1.5.0 | Skill: v1.1.0 | Last updated: 2026-03-28
 >
 > Paste the contents of this file into the system prompt / instructions field of any LLM interface.
 > Source of truth: https://github.com/rseldner/treage/tree/main/skill/treage-build
@@ -39,6 +39,21 @@ Sketch the tree mentally (or show the user a plain-text outline if the tree is c
 
 For complex trees (5+ questions), show the user the proposed outline and confirm before generating the full file.
 
+### Step 2a — Identify the workflow shape
+
+Before choosing node types, classify the workflow structure. This determines whether a straightforward tree will work or whether compromises are needed.
+
+**Binary/multi-path branching (standard)** — each decision gate leads to meaningfully different downstream steps. Model as question nodes with distinct child branches.
+
+**Linear with pre-flight instructions** — some early steps are setup instructions, not real decision gates. If both branches of a question lead to identical downstream steps, collapse it into a single `action` node with the instruction in the `hint`. This keeps the path connected without duplication.
+
+**Convergent paths (graph problem)** — if multiple branches need to rejoin at a shared downstream step, Treage cannot express this natively. The TREE is a JSON object tree, not a graph — there is no ID-based node reference system, so a shared node would have to be duplicated in full on each branch. Options:
+- Duplicate the shared subtree on each branch (explicit but bloated — maintenance burden doubles)
+- Collapse the pre-convergence branch into an `action` node and note the skip in the `hint` (loses the branch but keeps paths connected)
+- Note the limitation and reference issue [#28](https://github.com/rseldner/treage/issues/28) for the planned `jumpTo` enhancement
+
+For most runbook-style workflows, the pre-flight collapse is the right call. Only duplicate if the two branches have genuinely different outcomes downstream.
+
 ### Step 3 — Choose or define outcome types
 
 Default outcome types are: `action`, `review`, `combined`, `flag`, `stop`.
@@ -49,8 +64,16 @@ If the use case needs different types (e.g., `escalate`, `resolve`, `defer`), de
 
 Produce a complete, self-contained HTML file using the starter template at the bottom of this prompt as the base. Always use:
 - D3.js from `https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js`
-- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js`
+- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js`
 - Script load order: D3 → CONFIG+TREE script block → treage.js (strict — do not reorder)
+
+**Schema source — do not work from memory.** Key names are easy to get wrong. If unsure, the authoritative defaults are in the starter template at the bottom of this prompt.
+
+Key schema facts:
+- `title`, `subtitle`, `fonts` are top-level CONFIG keys — not nested under a `meta` wrapper
+- Palette keys are `bg`, `muted`, `dim`, `headerBg`, `gridLine`, `edgeYes`, `edgeNo` — not `background`, `textMuted`, `surfaceAlt`, etc.
+- nodeType appearance uses `dark`/`light` sub-objects with `bg`, `border`, `borderLeft`, `titleColor`, `hintColor`, `eyebrowColor` — not `palette`/`paletteLight` with `fill`/`stroke`/`text`
+- TREE nodes use `title` not `label`
 
 ### Step 5 — Validate before delivering
 
@@ -93,6 +116,17 @@ Deliver a complete HTML file. Do not deliver just the CONFIG or TREE blocks in i
 - **Wrong script order** — treage.js must load after D3 and after the CONFIG/TREE script block
 - **Missing paletteLight** — both `palette` and `paletteLight` are required; omitting one breaks the theme toggle
 - **isNewUntil dates in the past** — if using `isNewUntil`, use a future date or omit the field
+- **Wrong CONFIG schema keys** — palette and nodeType key names are specific to the engine version. Do not invent keys like `background`, `textMuted`, `fill`, `stroke`. Use the starter template at the bottom of this prompt as the reference.
+- **`label` instead of `title` on TREE nodes** — TREE nodes use `title` for display text. Using `label` silently produces nodes with no visible title.
+- **Convergent path treated as a tree** — if you find yourself writing identical subtrees on multiple branches, stop. Either the workflow has a convergent path (graph problem — see Step 2a) or the branching question is not a real gate and should be collapsed into a pre-flight `action` node.
+
+## Open issues
+
+The following engine enhancements are tracked and relevant when building trees:
+
+- [#27](https://github.com/rseldner/treage/issues/27) — `code` field for monospace blocks in nodes (workaround: put query syntax in `hint`)
+- [#28](https://github.com/rseldner/treage/issues/28) — `jumpTo` for cross-path node linking with audit trail (workaround: duplicate subtree or collapse branch into pre-flight action)
+- [#29](https://github.com/rseldner/treage/issues/29) — copy feature requires secure context; fails on mobile Chrome with `content://` URIs (workaround: serve locally with `python3 -m http.server 8080`)
 
 ---
 
@@ -226,7 +260,7 @@ Use this as the base for all generated files:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
 <script>
-/* Generated with Treage skill v1.0.0 | Engine v1.4.0 */
+/* Generated with Treage skill v1.1.0 | Engine v1.5.0 */
 
 const CONFIG = {
   title:    "My Decision Tree",
@@ -349,7 +383,7 @@ const TREE = {
 </script>
 
 <!-- Treage engine — must load after D3 and after CONFIG/TREE -->
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
 </head>
 <body></body>
 </html>
@@ -378,7 +412,7 @@ const TREE = {
 <title>ES Alert Triage</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-/* Generated with Treage skill v1.0.0 | Engine v1.4.0 */
+/* Generated with Treage skill v1.1.0 | Engine v1.5.0 */
 
 const CONFIG = {
   title:    "ES Alert Triage",
@@ -479,7 +513,7 @@ const TREE = {
   ]
 };
 </script>
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
 </head>
 <body></body>
 </html>

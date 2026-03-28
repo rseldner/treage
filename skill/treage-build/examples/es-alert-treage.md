@@ -40,7 +40,7 @@
 <title>ES Alert Triage</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-/* Generated with Treage skill v1.0.0 | Engine v1.4.0 */
+/* Generated with Treage skill v1.1.0 | Engine v1.5.0 */
 
 const CONFIG = {
   title:    "ES Alert Triage",
@@ -166,7 +166,7 @@ const TREE = {
   ]
 };
 </script>
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.4.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
 </head>
 <body></body>
 </html>
