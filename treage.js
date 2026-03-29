@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.7.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.8.0 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,15 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.8.0 — feat: code field — nodes may declare a code field (string) which
+            renders as a styled monospace block. Diagram view: ≤2 lines shown
+            inline; longer blocks show first 2 lines + ellipsis with a
+            Show/Hide toggle directly on the card. Expanded state tracked
+            per-node via codeExpandedIds (independent of links expand state).
+            Toolbar "show links" toggle also expands/collapses code blocks.
+            Walk/Interactive: full code block always visible with Copy button.
+            code content included in node search. SVG export preserves
+            collapsed code block styling.
    v1.7.0 — feat: clickable links in nodes — nodes may declare a links field
             (array of { label, url }) which renders as clickable buttons.
             Diagram view: bottom strip indicator on nodes with links/jumpTo;
@@ -440,6 +449,63 @@ body.tg-light .tg-icon-sun  { display: block; }
   color: var(--color-accent, #00bfb3);
   border-color: var(--color-accent, #00bfb3);
 }
+/* ── Code blocks ── */
+.tg-card-code {
+  margin-top: 6px; background: var(--color-code-bg, rgba(255,255,255,0.06));
+  border-radius: 4px; overflow: hidden;
+}
+.tg-card-code-pre {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9px; color: var(--color-muted, #7a8099);
+  padding: 5px 7px; line-height: 1.5; white-space: pre; overflow: hidden;
+}
+.tg-card-code-ellipsis {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9px; color: var(--color-dim, #4a5068);
+  padding: 0 7px 3px; display: block;
+}
+.tg-card-code-toggle {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 7px 5px; cursor: pointer;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: none; border-left: none; border-right: none; border-bottom: none;
+  width: 100%; text-align: left;
+}
+.tg-card-code-toggle-label { font-size: 9px; color: var(--color-dim, #4a5068); }
+.tg-card-code-toggle-arrow { font-size: 8px; color: var(--color-dim, #4a5068); transition: transform 0.15s; }
+.tg-card-code-toggle-arrow.expanded { transform: rotate(180deg); }
+.tg-card-code-full { display: none; padding: 5px 7px; border-top: 1px solid rgba(255,255,255,0.06); }
+.tg-card-code-full.visible { display: block; }
+.tg-card-code-full pre {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9px; color: var(--color-muted, #7a8099);
+  line-height: 1.5; white-space: pre; overflow-x: auto;
+}
+.tg-card-code-copy {
+  margin-top: 4px; font-size: 8.5px; color: var(--color-dim, #4a5068);
+  background: none; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 3px; padding: 2px 6px; cursor: pointer; transition: color 0.15s;
+}
+.tg-card-code-copy:hover { color: var(--color-accent, #00bfb3); border-color: rgba(0,191,179,0.3); }
+.tg-code-block {
+  margin-top: 10px; background: var(--color-code-bg, rgba(255,255,255,0.06));
+  border-radius: 6px; border: 1px solid var(--color-border, #252a38); overflow: hidden;
+}
+.tg-code-block pre {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11.5px; color: var(--color-text, #e8eaf0);
+  line-height: 1.6; padding: 10px 12px; white-space: pre; overflow-x: auto; margin: 0;
+}
+.tg-code-block-copy-row {
+  display: flex; justify-content: flex-end;
+  padding: 4px 8px 6px; border-top: 1px solid var(--color-border, #252a38);
+}
+.tg-code-block-copy {
+  font-size: 11px; color: var(--color-muted, #7a8099); background: none;
+  border: 1px solid var(--color-border, #252a38); border-radius: 4px;
+  padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.tg-code-block-copy:hover { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
 /* ── Inline links in walk/interactive panels ── */
 .tg-node-links {
   display: flex; flex-direction: column; gap: 5px;
@@ -711,6 +777,7 @@ let container  = null;   // cached canvas container
 let showLinksActive = false;  // toolbar "show links" toggle state
 let activeNodeId    = null;   // currently activated node in diagram view
 const expandedNodeIds = new Set(); // nodes with links/jumpTo currently expanded
+const codeExpandedIds = new Set(); // nodes with code block currently expanded
 const iState = { path: [], choices: [] };
 // Keyboard nav state — tracks which sibling edge is focused in tree view
 const kbState = { focusIndex: 0 };
@@ -752,6 +819,8 @@ function applyPalette() {
   r.setProperty('--header-bg',     p.headerBg);
   r.setProperty('--font-body',     CONFIG.fonts.body);
   r.setProperty('--font-mono',     CONFIG.fonts.mono);
+  // Derived: code block tint — dark: slight white lift; light: slight black tint
+  r.setProperty('--color-code-bg', currentTheme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)');
 }
 
 /* ── Layout ── */
@@ -761,14 +830,23 @@ function autoSize(nodeData) {
     const tw = Math.max(160, (nodeData.title || 'Start').length * 13 + 48);
     return { w: Math.min(tw, LAYOUT.maxWidth), h: 46 };
   }
-  const title = nodeData.title || '', hint = nodeData.hint || '';
+  const title = nodeData.title || '', hint = nodeData.hint || '', code = nodeData.code || '';
   const tl = Math.ceil(title.length / LAYOUT.charsPerLine) || 1;
   const hl = hint ? Math.ceil(hint.length  / LAYOUT.charsPerLine) || 1 : 0;
-  const contentH = 20 + (tl * LAYOUT.lineHeight) + (hl * (LAYOUT.lineHeight - 2)) + (hl > 0 ? 8 : 0);
+  const codeLines = code ? code.split('\n').length : 0;
+  const clCollapsed = codeLines > 0 ? Math.min(codeLines, 2) : 0; // collapsed: max 2 lines shown
+  const codeCollapsedH = clCollapsed > 0 ? (clCollapsed * 13 + (codeLines > 2 ? 22 : 10)) : 0; // pre lines + toggle strip
+  const contentH = 20 + (tl * LAYOUT.lineHeight) + (hl * (LAYOUT.lineHeight - 2)) + (hl > 0 ? 8 : 0) + codeCollapsedH;
   const baseH = Math.max(LAYOUT.minHeight, contentH + LAYOUT.paddingV);
   if (expandedNodeIds.has(nodeData.id) && nodeHasActions(nodeData)) {
     const linkCount = (nodeData.links ? nodeData.links.length : 0) + (nodeData.jumpTo ? 1 : 0);
-    return { w: LAYOUT.maxWidth, h: baseH + 28 + linkCount * 26 };
+    const codeExpandedH = codeExpandedIds.has(nodeData.id) && codeLines > 2
+      ? (codeLines - clCollapsed) * 13  // extra lines revealed on expand
+      : 0;
+    return { w: LAYOUT.maxWidth, h: baseH + 28 + linkCount * 26 + codeExpandedH };
+  }
+  if (codeExpandedIds.has(nodeData.id) && codeLines > 2) {
+    return { w: LAYOUT.maxWidth, h: baseH + (codeLines - clCollapsed) * 13 };
   }
   return { w: LAYOUT.maxWidth, h: baseH };
 }
@@ -1070,6 +1148,49 @@ function renderFullTree(g, layout) {
     card.append('xhtml:div').attr('class','tg-card-title').style('color', typeCfg.titleColor).text(data.title || '');
     if (data.hint) card.append('xhtml:div').attr('class','tg-card-hint').style('color', typeCfg.hintColor).text(data.hint);
 
+    if (data.code) {
+      const codeLines = data.code.split('\n');
+      const needsToggle = codeLines.length > 2;
+      const codeWrap = card.append('xhtml:div').attr('class','tg-card-code');
+      if (needsToggle) {
+        // Collapsed view: first 2 lines + ellipsis
+        const collapsedEl = codeWrap.append('xhtml:div').attr('class','tg-card-code-collapsed');
+        collapsedEl.append('xhtml:div').attr('class','tg-card-code-pre').text(codeLines.slice(0,2).join('\n'));
+        collapsedEl.append('xhtml:span').attr('class','tg-card-code-ellipsis').text('…');
+        // Expanded view: full code + copy button
+        const fullEl = codeWrap.append('xhtml:div').attr('class','tg-card-code-full' + (codeExpandedIds.has(data.id) ? ' visible' : ''));
+        fullEl.append('xhtml:pre').text(data.code);
+        const copyBtn = fullEl.append('xhtml:button').attr('class','tg-card-code-copy').text('Copy');
+        copyBtn.on('click', function(event) {
+          event.stopPropagation();
+          navigator.clipboard.writeText(data.code).then(() => {
+            copyBtn.text('Copied');
+            setTimeout(() => { copyBtn.text('Copy'); }, 1500);
+          }).catch(() => {});
+        });
+        // Toggle button
+        const toggleBtn = codeWrap.append('xhtml:button').attr('class','tg-card-code-toggle');
+        const arrow = toggleBtn.append('xhtml:span').attr('class','tg-card-code-toggle-arrow' + (codeExpandedIds.has(data.id) ? ' expanded' : '')).text('▼');
+        const lbl = toggleBtn.append('xhtml:span').attr('class','tg-card-code-toggle-label').text(codeExpandedIds.has(data.id) ? 'Hide code' : 'Show code');
+        toggleBtn.on('click', function(event) {
+          event.stopPropagation();
+          const isExpanded = codeExpandedIds.has(data.id);
+          if (isExpanded) { codeExpandedIds.delete(data.id); } else { codeExpandedIds.add(data.id); }
+          collapsedEl.style('display', isExpanded ? null : 'none');
+          fullEl.classed('visible', !isExpanded);
+          arrow.classed('expanded', !isExpanded);
+          lbl.text(isExpanded ? 'Show code' : 'Hide code');
+          buildLayout(TREE);
+          rebuildTree();
+        });
+        // Apply initial collapsed state
+        if (codeExpandedIds.has(data.id)) collapsedEl.style('display','none');
+      } else {
+        // Short code: always visible, no toggle
+        codeWrap.append('xhtml:div').attr('class','tg-card-code-pre').text(data.code);
+      }
+    }
+
     if (nodeHasActions(data)) {
       // Bottom strip indicator — always visible
       const strip = card.append('xhtml:div').attr('class','tg-card-link-strip');
@@ -1180,18 +1301,20 @@ function rebuildTree() {
   }
 }
 
-/* ── Show links toggle ── */
+/* ── Show all toggle ── */
 function applyShowLinks(on) {
   if (on) {
-    // Add all action nodes to expandedNodeIds
     if (treeLayout) {
       treeLayout.nodes.forEach(d => {
-        if (nodeHasActions(d.data)) expandedNodeIds.add(d.data.id);
+        if (nodeHasActions(d.data)) {
+          expandedNodeIds.add(d.data.id);
+          if (d.data.code) codeExpandedIds.add(d.data.id);
+        }
       });
     }
   } else {
-    // Remove all except individually activated node
     expandedNodeIds.clear();
+    codeExpandedIds.clear();
     if (activeNodeId) expandedNodeIds.add(activeNodeId);
   }
   rebuildTree();
@@ -1419,6 +1542,7 @@ function wRender() {
       hint.textContent = currentNode.hint;
       activeEl.appendChild(hint);
     }
+    if (currentNode.code) activeEl.appendChild(makeCodeBlockEl(currentNode.code));
     if (currentNode.links && currentNode.links.length > 0) {
       activeEl.appendChild(makeNodeLinksEl(currentNode, null));
     }
@@ -1492,6 +1616,7 @@ function wRender() {
       h.textContent = currentNode.hint;
       card.appendChild(h);
     }
+    if (currentNode.code) card.appendChild(makeCodeBlockEl(currentNode.code));
     if (currentNode.links && currentNode.links.length > 0) {
       card.appendChild(makeNodeLinksEl(currentNode, null));
     }
@@ -1650,6 +1775,7 @@ function iRender() {
       h.className = 'tg-i-hint'; h.textContent = current.hint;
       card.appendChild(h);
     }
+    if (current.code) card.appendChild(makeCodeBlockEl(current.code));
     if (current.links && current.links.length > 0) {
       card.appendChild(makeNodeLinksEl(current, null));
     }
@@ -1702,6 +1828,7 @@ function iRender() {
       h.textContent = current.hint;
       card.appendChild(h);
     }
+    if (current.code) card.appendChild(makeCodeBlockEl(current.code));
     if (current.links && current.links.length > 0) {
       card.appendChild(makeNodeLinksEl(current, null));
     }
@@ -1757,7 +1884,8 @@ function searchMatches(query) {
     if (d.data.type === 'start') return false;
     const title = (d.data.title || '').toLowerCase();
     const hint  = (d.data.hint  || '').toLowerCase();
-    return title.includes(q) || hint.includes(q);
+    const code  = (d.data.code  || '').toLowerCase();
+    return title.includes(q) || hint.includes(q) || code.includes(q);
   });
 }
 
@@ -1839,6 +1967,29 @@ function searchStep(dir) {
   searchState.index = (searchState.index + dir + searchState.matches.length) % searchState.matches.length;
   applySearchHighlight();
   searchPanTo(searchState.index);
+}
+
+/* ── code field: walk/interactive block (always fully expanded) ── */
+function makeCodeBlockEl(codeStr) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tg-code-block';
+  const pre = document.createElement('pre');
+  pre.textContent = codeStr;
+  wrap.appendChild(pre);
+  const copyRow = document.createElement('div');
+  copyRow.className = 'tg-code-block-copy-row';
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'tg-code-block-copy';
+  copyBtn.textContent = 'Copy';
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(codeStr).then(() => {
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    }).catch(() => {});
+  };
+  copyRow.appendChild(copyBtn);
+  wrap.appendChild(copyRow);
+  return wrap;
 }
 
 /* ── jumpTo: Continue button ── */
@@ -2334,6 +2485,8 @@ function exportSVG() {
     '.tg-new-badge { background:rgba(254,197,20,0.15); color:#fec514; border:1px solid rgba(254,197,20,0.3); border-radius:4px; font-size:8px; padding:1px 4px; letter-spacing:0.5px; }',
     '.tg-card-title { font-size:12px; font-weight:500; line-height:1.45; font-family:sans-serif; }',
     '.tg-card-hint  { font-size:10.5px; font-weight:300; font-style:italic; margin-top:5px; line-height:1.4; font-family:sans-serif; }',
+    '.tg-card-code  { margin-top:6px; background:rgba(255,255,255,0.04); border-radius:4px; overflow:hidden; }',
+    '.tg-card-code-pre { font-family:monospace; font-size:9px; padding:5px 7px; line-height:1.5; white-space:pre; overflow:hidden; }',
   ].join('\n');
   clone.insertBefore(styleEl, clone.firstChild);
 

@@ -46,7 +46,7 @@ If jsdelivr cdn is accessible, nothing else is needed.  The engine is already de
     const CONFIG = { ... };
     const TREE   = { ... };
   </script>
-  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js"></script>
 </head>
 <body></body>
 </html>
