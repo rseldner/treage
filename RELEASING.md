@@ -9,10 +9,13 @@
   - `examples/elasticsearch-red-recovery.html`
   - `playground/playground.html` (buildPreviewHTML function)
   - etc...
-  ```
+```
   grep -rn "treage@" index.html examples/ playground/playground.html
   grep -rln "treage@X.Y.Z" index.html examples/ playground/playground.html | xargs sed -i '' 's/treage@X\.Y\.Z/treage@A.B.C/g'
-  ```
+  grep -rln "treage@X\.Y\.Z" . --include="*.html" --include="*.md" | xargs sed -i '' 's/treage@X\.Y\.Z/treage@A\.B\.C/g'
+  grep -rn "treage@1\.5\.0" . --include="*.html" --include="*.md"
+```
+- [ ] Update `TREAGE_CURRENT_VERSION` in `playground/playground.html`
 
 - [ ] Commit all changes atomically:
   ```

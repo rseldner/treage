@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.6.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.7.0 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,13 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.7.0 — feat: clickable links in nodes — nodes may declare a links field
+            (array of { label, url }) which renders as clickable buttons.
+            Diagram view: bottom strip indicator on nodes with links/jumpTo;
+            first click activates node and expands in place to show buttons;
+            click outside deactivates. Toolbar "show links" toggle expands all
+            link/jumpTo nodes simultaneously for scanning or screenshots.
+            Walk/Interactive: links render inline on the active node card.
    v1.6.0 — feat: jumpTo — leaf nodes may declare a jumpTo field referencing
             another node's id. When the walk reaches that outcome, a
             "Continue →" button appears. Clicking it teleports the walk to
@@ -381,6 +388,75 @@ body.tg-light .tg-icon-sun  { display: block; }
   font-size: 10px; font-style: italic; opacity: 0.6;
   margin-top: 4px; color: var(--color-accent, #00bfb3);
 }
+/* ── Node link strip (bottom of diagram node card) ── */
+.tg-card-link-strip {
+  display: flex; align-items: center; gap: 5px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 0.5px solid var(--color-border, #252a38);
+}
+.tg-card-link-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--color-accent, #00bfb3); flex-shrink: 0;
+}
+.tg-card-link-strip-text {
+  font-size: 10px; color: var(--color-accent, #00bfb3);
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  letter-spacing: 0.3px;
+}
+/* ── Expanded link buttons inside diagram node card ── */
+.tg-card-links-expanded {
+  display: none; flex-direction: column; gap: 5px;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 0.5px solid var(--color-border, #252a38);
+}
+.tg-card-links-expanded.tg-links-visible { display: flex; }
+.tg-card-link-btn {
+  font-size: 10px; padding: 4px 8px; border-radius: 5px;
+  border: 0.5px solid var(--color-accent, #00bfb3);
+  color: var(--color-accent, #00bfb3);
+  background: rgba(0,191,179,0.06); cursor: pointer;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 5px;
+  text-decoration: none;
+}
+.tg-card-link-btn:hover { background: rgba(0,191,179,0.12); }
+.tg-card-jump-expand-btn {
+  font-size: 10px; padding: 4px 8px; border-radius: 5px;
+  border: 0.5px solid #f5a623; color: #f5a623;
+  background: rgba(245,166,35,0.06); cursor: pointer;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 5px;
+}
+.tg-card-jump-expand-btn:hover { background: rgba(245,166,35,0.12); }
+/* ── Active node state in diagram view ── */
+.tg-tree-node.tg-node-active > div {
+  outline: 2px solid var(--color-accent, #00bfb3) !important;
+  outline-offset: -1px;
+}
+/* ── Show links toolbar toggle ── */
+.tg-ctrl-btn.tg-links-active {
+  color: var(--color-accent, #00bfb3);
+  border-color: var(--color-accent, #00bfb3);
+}
+/* ── Inline links in walk/interactive panels ── */
+.tg-node-links {
+  display: flex; flex-direction: column; gap: 5px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--color-border, #252a38);
+}
+.tg-node-link-btn {
+  font-size: 11px; padding: 6px 10px; border-radius: 6px;
+  border: 0.5px solid var(--color-accent, #00bfb3);
+  color: var(--color-accent, #00bfb3);
+  background: rgba(0,191,179,0.06); cursor: pointer;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 6px;
+  text-decoration: none;
+}
+.tg-node-link-btn:hover { background: rgba(0,191,179,0.12); }
 .tg-copy-link-btn {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: 1px solid var(--color-border, #252a38);
@@ -590,6 +666,13 @@ const TREAGE_BODY = `
           <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
         </svg>
       </button>
+      <button class="tg-ctrl-btn" id="tg-show-links" title="Show links / actions">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="7 8 12 3 17 8"/>
+          <polyline points="7 16 12 21 17 16"/>
+          <line x1="12" y1="3" x2="12" y2="21"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -602,7 +685,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.6.0</span>
+    <span>Treage v1.7.0</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -625,6 +708,9 @@ let currentTheme = 'dark';
 let treeSvg, treeG, treeZoom, fitView;
 let treeLayout = null;   // cached layout for highlight/pan after initial render
 let container  = null;   // cached canvas container
+let showLinksActive = false;  // toolbar "show links" toggle state
+let activeNodeId    = null;   // currently activated node in diagram view
+const expandedNodeIds = new Set(); // nodes with links/jumpTo currently expanded
 const iState = { path: [], choices: [] };
 // Keyboard nav state — tracks which sibling edge is focused in tree view
 const kbState = { focusIndex: 0 };
@@ -679,7 +765,12 @@ function autoSize(nodeData) {
   const tl = Math.ceil(title.length / LAYOUT.charsPerLine) || 1;
   const hl = hint ? Math.ceil(hint.length  / LAYOUT.charsPerLine) || 1 : 0;
   const contentH = 20 + (tl * LAYOUT.lineHeight) + (hl * (LAYOUT.lineHeight - 2)) + (hl > 0 ? 8 : 0);
-  return { w: LAYOUT.maxWidth, h: Math.max(LAYOUT.minHeight, contentH + LAYOUT.paddingV) };
+  const baseH = Math.max(LAYOUT.minHeight, contentH + LAYOUT.paddingV);
+  if (expandedNodeIds.has(nodeData.id) && nodeHasActions(nodeData)) {
+    const linkCount = (nodeData.links ? nodeData.links.length : 0) + (nodeData.jumpTo ? 1 : 0);
+    return { w: LAYOUT.maxWidth, h: baseH + 28 + linkCount * 26 };
+  }
+  return { w: LAYOUT.maxWidth, h: baseH };
 }
 
 function buildLayout(data) {
@@ -978,25 +1069,93 @@ function renderFullTree(g, layout) {
     if (isNodeNew(data)) eb.append('xhtml:span').attr('class','tg-new-badge').text('NEW');
     card.append('xhtml:div').attr('class','tg-card-title').style('color', typeCfg.titleColor).text(data.title || '');
     if (data.hint) card.append('xhtml:div').attr('class','tg-card-hint').style('color', typeCfg.hintColor).text(data.hint);
-    if (data.jumpTo) {
-      const jumpTarget = findNodeById(data.jumpTo, TREE);
-      const jumpLabel = jumpTarget ? (jumpTarget.title || data.jumpTo) : data.jumpTo;
-      card.append('xhtml:div').attr('class','tg-card-jump-badge').text('→ continues at: ' + jumpLabel);
-    }
 
-    // Click any node to jump the walk directly to that node
-    fo.style('cursor', 'pointer')
-      .on('mouseenter', function() {
-        if (!iState.choices.length || activePathIds().has(data.id)) return;
-        d3.select(this).select('div').style('outline', `1.5px solid ${activePalette().accent}`).style('outline-offset', '-1.5px');
-      })
-      .on('mouseleave', function() {
-        d3.select(this).select('div').style('outline', null).style('outline-offset', null);
-      })
-      .on('click', function(event) {
-        event.stopPropagation();
-        treeWalkJumpTo(data, d);
-      });
+    if (nodeHasActions(data)) {
+      // Bottom strip indicator — always visible
+      const strip = card.append('xhtml:div').attr('class','tg-card-link-strip');
+      strip.append('xhtml:div').attr('class','tg-card-link-dot');
+      const linkCount = (data.links ? data.links.length : 0) + (data.jumpTo ? 1 : 0);
+      const stripLabel = linkCount === 1 ? '1 action' : linkCount + ' actions';
+      strip.append('xhtml:span').attr('class','tg-card-link-strip-text').text(stripLabel);
+
+      // Expanded links section — hidden until activated or show-all toggled
+      const expanded = card.append('xhtml:div').attr('class','tg-card-links-expanded');
+
+      if (data.links && data.links.length > 0) {
+        data.links.forEach(lk => {
+          const a = expanded.append('xhtml:a')
+            .attr('class','tg-card-link-btn')
+            .attr('href', lk.url)
+            .attr('target','_blank')
+            .attr('rel','noopener noreferrer');
+          a.append('xhtml:span').style('font-size','10px').text('↗');
+          a.append('xhtml:span').text(lk.label || lk.url);
+        });
+      }
+
+      if (data.jumpTo) {
+        const jumpTarget = findNodeById(data.jumpTo, TREE);
+        if (jumpTarget) {
+          const jBtn = expanded.append('xhtml:div').attr('class','tg-card-jump-expand-btn');
+          jBtn.append('xhtml:span').text('→');
+          jBtn.append('xhtml:span').text('Continue to: ' + (jumpTarget.title || jumpTarget.id));
+          jBtn.on('click', function(event) {
+            event.stopPropagation();
+            const choices = iState.choices;
+            choices.push({ label: '→ ' + (jumpTarget.title || jumpTarget.id), node: jumpTarget, jump: true });
+            iState.path.push(jumpTarget);
+            highlightActivePath();
+            writePath();
+            const ln = treeLayout && treeLayout.nodes.find(n => n.data.id === jumpTarget.id);
+            if (ln) panToNode(ln);
+            wRender(); iRender();
+          });
+        } else {
+          console.warn(`Treage: jumpTo target "${data.jumpTo}" not found on node "${data.id}"`);
+        }
+      }
+
+      // Activate / deactivate on click
+      fo.style('cursor', 'pointer')
+        .on('mouseenter', function() {
+          if (expandedNodeIds.has(data.id)) return;
+          if (!iState.choices.length || activePathIds().has(data.id)) return;
+          d3.select(this).select('div').style('outline', `1.5px solid ${activePalette().accent}`).style('outline-offset', '-1.5px');
+        })
+        .on('mouseleave', function() {
+          if (expandedNodeIds.has(data.id)) return;
+          d3.select(this).select('div').style('outline', null).style('outline-offset', null);
+        })
+        .on('click', function(event) {
+          event.stopPropagation();
+          // Always advance the walk (same as non-action nodes)
+          treeWalkJumpTo(data, d);
+          // Toggle expand state and rebuild layout
+          if (expandedNodeIds.has(data.id) && !showLinksActive) {
+            expandedNodeIds.delete(data.id);
+            if (activeNodeId === data.id) activeNodeId = null;
+          } else {
+            expandedNodeIds.add(data.id);
+            activeNodeId = data.id;
+          }
+          rebuildTree();
+        });
+
+    } else {
+      // No actions — original click-to-jump-walk behaviour
+      fo.style('cursor', 'pointer')
+        .on('mouseenter', function() {
+          if (!iState.choices.length || activePathIds().has(data.id)) return;
+          d3.select(this).select('div').style('outline', `1.5px solid ${activePalette().accent}`).style('outline-offset', '-1.5px');
+        })
+        .on('mouseleave', function() {
+          d3.select(this).select('div').style('outline', null).style('outline-offset', null);
+        })
+        .on('click', function(event) {
+          event.stopPropagation();
+          treeWalkJumpTo(data, d);
+        });
+    }
   });
 }
 
@@ -1006,13 +1165,70 @@ function rebuildTree() {
   treeLayout = buildLayout(TREE);
   renderFullTree(treeG, treeLayout);
   highlightActivePath();
+  // Re-apply expanded class to any nodes that are in expandedNodeIds
+  if (expandedNodeIds.size > 0) {
+    treeG.selectAll('.tg-tree-node').each(function(d) {
+      if (expandedNodeIds.has(d.data.id)) {
+        d3.select(this).classed('tg-node-active', d.data.id === activeNodeId);
+        d3.select(this).select('.tg-card-links-expanded').classed('tg-links-visible', true);
+      }
+    });
+  }
   if (searchState.query) {
     searchState.matches = searchMatches(searchState.query);
     applySearchHighlight();
   }
 }
 
+/* ── Show links toggle ── */
+function applyShowLinks(on) {
+  if (on) {
+    // Add all action nodes to expandedNodeIds
+    if (treeLayout) {
+      treeLayout.nodes.forEach(d => {
+        if (nodeHasActions(d.data)) expandedNodeIds.add(d.data.id);
+      });
+    }
+  } else {
+    // Remove all except individually activated node
+    expandedNodeIds.clear();
+    if (activeNodeId) expandedNodeIds.add(activeNodeId);
+  }
+  rebuildTree();
+}
+
 /* ── Tree walk: find path from root to a given node ID ── */
+/* ── Node links helpers ── */
+function nodeHasActions(data) {
+  return (data.links && data.links.length > 0) || !!data.jumpTo;
+}
+
+function makeNodeLinksEl(node, onJump) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tg-node-links';
+  if (node.links && node.links.length > 0) {
+    node.links.forEach(lk => {
+      const a = document.createElement('a');
+      a.className = 'tg-node-link-btn';
+      a.href = lk.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.innerHTML = '<span style="font-size:11px">↗</span> ' + (lk.label || lk.url);
+      wrap.appendChild(a);
+    });
+  }
+  if (node.jumpTo && onJump) {
+    const jumpTarget = findNodeById(node.jumpTo, TREE);
+    if (jumpTarget) {
+      const btn = document.createElement('button');
+      btn.className = 'tg-jump-btn';
+      btn.innerHTML = '→ Continue';
+      btn.title = 'Continue to: ' + (jumpTarget.title || jumpTarget.id);
+      btn.onclick = onJump;
+      wrap.appendChild(btn);
+    }
+  }
+  return wrap;
+}
+
 /* ── Find a node anywhere in the tree by id ── */
 function findNodeById(id, node) {
   if (node.id === id) return node;
@@ -1203,6 +1419,9 @@ function wRender() {
       hint.textContent = currentNode.hint;
       activeEl.appendChild(hint);
     }
+    if (currentNode.links && currentNode.links.length > 0) {
+      activeEl.appendChild(makeNodeLinksEl(currentNode, null));
+    }
     root.appendChild(activeEl);
 
     // Choice cards
@@ -1273,6 +1492,9 @@ function wRender() {
       h.textContent = currentNode.hint;
       card.appendChild(h);
     }
+    if (currentNode.links && currentNode.links.length > 0) {
+      card.appendChild(makeNodeLinksEl(currentNode, null));
+    }
 
     const resetBtn = document.createElement('button');
     resetBtn.className = 'tg-reset-btn'; resetBtn.innerHTML = '↺ Start over';
@@ -1314,6 +1536,7 @@ function wRender() {
       iState.path    = iState.path.slice(0, -1);
       iState.choices = iState.choices.slice(0, -1);
       highlightActivePath();
+      writePath();
       wRender();
       iRender();
       const panel = document.getElementById('tg-panel-walk');
@@ -1427,6 +1650,9 @@ function iRender() {
       h.className = 'tg-i-hint'; h.textContent = current.hint;
       card.appendChild(h);
     }
+    if (current.links && current.links.length > 0) {
+      card.appendChild(makeNodeLinksEl(current, null));
+    }
     const optRow = document.createElement('div');
     optRow.className = 'tg-options-row';
     (current.children || []).forEach(child => {
@@ -1475,6 +1701,9 @@ function iRender() {
       h.className = 'tg-outcome-hint'; h.style.color = typeCfg.hintColor;
       h.textContent = current.hint;
       card.appendChild(h);
+    }
+    if (current.links && current.links.length > 0) {
+      card.appendChild(makeNodeLinksEl(current, null));
     }
 
     const reset = document.createElement('button');
@@ -1978,6 +2207,25 @@ function init() {
       copy();
     }
   };
+
+  document.getElementById('tg-show-links').onclick = function() {
+    showLinksActive = !showLinksActive;
+    this.classList.toggle('tg-links-active', showLinksActive);
+    this.title = showLinksActive ? 'Hide links / actions' : 'Show links / actions';
+    applyShowLinks(showLinksActive);
+  };
+
+  // Click outside any node in the canvas deactivates the active node
+  if (treeSvg) {
+    treeSvg.on('click.deactivate', function() {
+      if (!activeNodeId) return;
+      if (!showLinksActive) {
+        expandedNodeIds.delete(activeNodeId);
+      }
+      activeNodeId = null;
+      rebuildTree();
+    });
+  }
 
   treeLayout = buildLayout(TREE);
   renderFullTree(treeG, treeLayout);
