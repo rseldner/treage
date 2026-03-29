@@ -1,5 +1,5 @@
 # Treage Grammar Reference
-> Engine: v1.7.0 | Last updated: 2026-03-29
+> Engine: v1.8.0 | Last updated: 2026-03-29
 
 This document is the authoritative reference for the CONFIG and TREE object schemas.
 It is loaded into context when the Treage skill is active.
@@ -26,7 +26,7 @@ It is loaded into context when the Treage skill is active.
   </script>
 
   <!-- 3. Treage engine — must load last -->
-  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js"></script>
 </head>
 <body></body>
 </html>
@@ -148,6 +148,7 @@ The TREE object is a single root node with nested `children` arrays.
 | `isNewUntil` | string (ISO date) | no | Like `isNew` but auto-expires. Format: `"2025-12-31"`. If date is past, badge does not show. (v1.2.3+) |
 | `links` | array | no | Array of `{ label, url }` objects. Renders as clickable buttons. Available on any node type. (v1.7.0+) |
 | `jumpTo` | string | no | ID of another node. Renders a "Continue →" button on the outcome card that teleports the walk to the target node. **Intended for leaf nodes only.** Setting `jumpTo` on a question node is not enforced by the engine but will produce a misleading Continue button alongside active branch choices — do not do this. (v1.6.0+) |
+| `code` | string | no | A monospace code block rendered below the hint. Multiline strings supported — use `\n` for line breaks. In diagram view, blocks of ≤2 lines are always visible; longer blocks show the first 2 lines with a Show/Hide toggle. In walk/interactive view, the full block is always visible with a Copy button. (v1.8.0+) |
 
 ### edgeLabel values
 
@@ -159,6 +160,29 @@ The TREE object is a single root node with nested `children` arrays.
 | `""` or omitted | No label — use only on the first question after `start` |
 
 Non-binary branching is supported. A question can have 2, 3, or 4 children with labels like `"LOW"`, `"MED"`, `"HIGH"` or `"PATH A"`, `"PATH B"`, `"PATH C"`.
+
+### code (optional, v1.8.0+)
+
+A multiline string rendered as a styled monospace block below the hint. Use for query syntax, CLI commands, API calls, or any content that benefits from fixed-width rendering.
+
+```js
+{
+  id: "out-run-query",
+  type: "action",
+  eyebrow: "Action Required",
+  title: "Run process tree query.",
+  hint: "Use alert @timestamp ± 1hr as the time boundary.",
+  code: "FROM logs-endpoint.events.process-*\n| WHERE agent.id == '<id>'\n| KEEP @timestamp, process.name, process.parent.name\n| LIMIT 80",
+  edgeLabel: "YES",
+  children: []
+}
+```
+
+**Diagram view:** Blocks of ≤2 lines render inline with no toggle. Blocks of >2 lines show the first 2 lines with an ellipsis and a Show/Hide toggle that expands the full block in place. The toolbar "show links" button also expands/collapses all code blocks.
+
+**Walk/Interactive view:** The full block is always visible with a Copy button.
+
+**Search:** `code` content is included in node search alongside `title` and `hint`.
 
 ### links (optional, v1.7.0+)
 
@@ -271,6 +295,7 @@ const TREE = {
 | Builder focus sync | 1.5.0 | (automatic, postMessage highlight) |
 | `jumpTo` — walk teleport with audit trail | 1.6.0 | `jumpTo: "nodeId"` on leaf nodes |
 | `links` — clickable action buttons on nodes | 1.7.0 | `links: [{ label, url }]` |
+| `code` — monospace code block in nodes | 1.8.0 | `code: "..."` (multiline via `\n`) |
 
 All features listed are automatic — no TREE/CONFIG changes needed to enable them.
 

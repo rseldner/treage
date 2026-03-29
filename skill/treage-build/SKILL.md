@@ -6,8 +6,8 @@ description: >
   tree, decision tree, or routing flowchart using the Treage framework.
 metadata:
   author: rseldner
-  version: 1.2.0
-  treage-engine: "1.7.0"
+  version: 1.3.0
+  treage-engine: "1.8.0"
 ---
 
 # Treage Tree Builder
@@ -76,7 +76,7 @@ Remove unused default types from CONFIG to keep the legend clean.
 
 Produce a complete, self-contained HTML file modelled on [assets/boilerplate.html](assets/boilerplate.html), which documents every feature with inline comments. Always use:
 - D3.js from `https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js`
-- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js`
+- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js`
 - Script load order: D3 → CONFIG+TREE script block → treage.js (strict — do not reorder)
 
 **Schema source — do not work from memory.** The CONFIG and TREE schemas are defined by the engine and key names are easy to get wrong. If `references/GRAMMAR.md` is unavailable, fetch the authoritative defaults directly from the playground:
@@ -117,6 +117,7 @@ Run through this checklist mentally before presenting output:
 - [ ] `eyebrow` text is consistent (e.g., "Question 1", "Question 2" or "Step 1", "Step 2")
 - [ ] Any `jumpTo` values reference IDs that actually exist in the tree, and are only set on leaf nodes
 - [ ] Any `links` entries have both `label` and `url` populated
+- [ ] Any `code` values are plain strings; multiline content uses `\n` not literal newlines inside the JS object
 
 ## Output Format
 
@@ -142,7 +143,7 @@ Include a brief comment at the top of the `<script>` block noting the Treage ver
 
 The following engine enhancements are tracked and relevant when building trees:
 
-- [#27](https://github.com/rseldner/treage/issues/27) — `code` field for monospace blocks in nodes (workaround: put query syntax in `hint`)
 - [#30](https://github.com/rseldner/treage/issues/30) — `jumpTo` navigation directly from diagram view click is not yet supported; Continue button only appears in the expanded outcome card
 - [#31](https://github.com/rseldner/treage/issues/31) — Builder UI has no field for `jumpTo`; add it manually in the TREE source editor
 - [#32](https://github.com/rseldner/treage/issues/32) — Builder UI has no fields for `links`; add them manually in the TREE source editor
+- Builder UI has no field for `code`; add it manually in the TREE source editor

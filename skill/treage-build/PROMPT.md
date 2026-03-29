@@ -1,5 +1,5 @@
 # Treage Decision Tree Generator — System Prompt
-> Engine: v1.7.0 | Skill: v1.2.0 | Last updated: 2026-03-29
+> Engine: v1.8.0 | Skill: v1.3.0 | Last updated: 2026-03-29
 >
 > Paste the contents of this file into the system prompt / instructions field of any LLM interface.
 > Source of truth: https://github.com/rseldner/treage/tree/main/skill/treage-build
@@ -64,7 +64,7 @@ If the use case needs different types (e.g., `escalate`, `resolve`, `defer`), de
 
 Produce a complete, self-contained HTML file using the starter template at the bottom of this prompt as the base. Always use:
 - D3.js from `https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js`
-- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js`
+- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js`
 - Script load order: D3 → CONFIG+TREE script block → treage.js (strict — do not reorder)
 
 **Schema source — do not work from memory.** Key names are easy to get wrong. If unsure, the authoritative defaults are in the starter template at the bottom of this prompt.
@@ -129,6 +129,7 @@ The following engine enhancements are tracked and relevant when building trees:
 - [#30](https://github.com/rseldner/treage/issues/30) — `jumpTo` navigation from diagram view click not yet supported; Continue button only appears in the expanded outcome card
 - [#31](https://github.com/rseldner/treage/issues/31) — Builder UI has no field for `jumpTo`; add manually in TREE source editor
 - [#32](https://github.com/rseldner/treage/issues/32) — Builder UI has no fields for `links`; add manually in TREE source editor
+- Builder UI has no field for `code`; add manually in TREE source editor
 
 ---
 
@@ -218,6 +219,7 @@ myType: {
 | `isNewUntil` | string | no | ISO date string. Badge auto-hides after this date. E.g. `"2026-12-31"` |
 | `links` | array | no | Array of `{ label, url }` objects. Renders as clickable buttons on the node card. Available on any node type. (v1.7.0+) |
 | `jumpTo` | string | no | ID of another node. Renders a "Continue →" button on the outcome card that teleports the walk to the target node. **Leaf nodes only.** The engine does not enforce this — setting `jumpTo` on a question node will render a misleading Continue button alongside active branch choices. If the target ID does not exist, the engine logs a warning and the button is not rendered. (v1.6.0+) |
+| `code` | string | no | Monospace code block rendered below the hint. Multiline via `\n`. In diagram view, ≤2 lines are always visible; >2 lines show first 2 + ellipsis with a Show/Hide toggle. Walk/interactive always shows the full block with a Copy button. Included in node search. (v1.8.0+) |
 
 ### edgeLabel values
 
@@ -387,7 +389,7 @@ const TREE = {
 </script>
 
 <!-- Treage engine — must load after D3 and after CONFIG/TREE -->
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js"></script>
 </head>
 <body></body>
 </html>
@@ -517,7 +519,7 @@ const TREE = {
   ]
 };
 </script>
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js"></script>
 </head>
 <body></body>
 </html>

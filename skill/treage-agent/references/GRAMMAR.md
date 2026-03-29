@@ -1,5 +1,5 @@
 # Treage Grammar Reference
-> Engine: v1.7.0 | Last updated: 2026-03-29
+> Engine: v1.8.0 | Last updated: 2026-03-29
 
 This document is the authoritative reference for the CONFIG and TREE object schemas.
 It is loaded into context when the Treage skill is active.
@@ -26,7 +26,7 @@ It is loaded into context when the Treage skill is active.
   </script>
 
   <!-- 3. Treage engine — must load last -->
-  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.0/treage.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.7.0/treage.js"></script>
 </head>
 <body></body>
 </html>
@@ -148,6 +148,7 @@ The TREE object is a single root node with nested `children` arrays.
 | `isNewUntil` | string (ISO date) | no | Like `isNew` but auto-expires. Format: `"2025-12-31"`. If date is past, badge does not show. (v1.2.3+) |
 | `links` | array | no | Array of `{ label, url }` objects. Renders as clickable buttons. Available on any node type. Not relevant to agent traversal — ignore during walks. (v1.7.0+) |
 | `jumpTo` | string | no | ID of another node. Intended for leaf nodes only. When the walk reaches a node with `jumpTo`, the engine renders a "Continue →" button that teleports to the target. **Traversal agents must follow `jumpTo` automatically** — do not treat it as a terminal outcome. Record the jump as a distinct path segment (`,>targetId`) and continue traversal from the target node. If the target ID does not exist in the tree, flag and halt. (v1.6.0+) |
+| `code` | string | no | Monospace code block rendered below the hint. Not relevant to agent traversal — ignore during walks. May be referenced when generating output if the code content is relevant to the outcome (e.g. including a query in the path summary). (v1.8.0+) |
 
 ### edgeLabel values
 
@@ -235,6 +236,7 @@ const TREE = {
 | Builder focus sync | 1.5.0 | (automatic, postMessage highlight) |
 | `jumpTo` — walk teleport with audit trail | 1.6.0 | `jumpTo: "nodeId"` on leaf nodes |
 | `links` — clickable action buttons on nodes | 1.7.0 | `links: [{ label, url }]` |
+| `code` — monospace code block in nodes | 1.8.0 | `code: "..."` (multiline via `\n`) |
 
 All features listed are automatic — no TREE/CONFIG changes needed to enable them.
 
