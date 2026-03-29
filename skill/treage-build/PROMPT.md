@@ -64,7 +64,7 @@ If the use case needs different types (e.g., `escalate`, `resolve`, `defer`), de
 
 Produce a complete, self-contained HTML file using the starter template at the bottom of this prompt as the base. Always use:
 - D3.js from `https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js`
-- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js`
+- Treage engine from `https://cdn.jsdelivr.net/gh/rseldner/treage@1.6.0/treage.js`
 - Script load order: D3 → CONFIG+TREE script block → treage.js (strict — do not reorder)
 
 **Schema source — do not work from memory.** Key names are easy to get wrong. If unsure, the authoritative defaults are in the starter template at the bottom of this prompt.
@@ -383,7 +383,7 @@ const TREE = {
 </script>
 
 <!-- Treage engine — must load after D3 and after CONFIG/TREE -->
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.6.0/treage.js"></script>
 </head>
 <body></body>
 </html>
@@ -513,7 +513,7 @@ const TREE = {
   ]
 };
 </script>
-<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.6.0/treage.js"></script>
 </head>
 <body></body>
 </html>

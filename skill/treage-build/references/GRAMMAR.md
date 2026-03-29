@@ -26,7 +26,7 @@ It is loaded into context when the Treage skill is active.
   </script>
 
   <!-- 3. Treage engine — must load last -->
-  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.5.0/treage.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.6.0/treage.js"></script>
 </head>
 <body></body>
 </html>

@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.5.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.6.0 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,12 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.6.0 — feat: jumpTo — leaf nodes may declare a jumpTo field referencing
+            another node's id. When the walk reaches that outcome, a
+            "Continue →" button appears. Clicking it teleports the walk to
+            the target node. The jump is recorded in the audit path as a
+            distinct segment (,>targetId) and included in copy path output.
+            #path= URL encoding handles jump segments for full shareability.
    v1.5.0 — feat: playground builder focus sync — when a node is expanded
             in the Builder tab, treage.js listens for a postMessage and
             pans to the corresponding node in the live tree preview, then
@@ -362,6 +368,19 @@ body.tg-light .tg-icon-sun  { display: block; }
   cursor: pointer; margin-top: 20px; transition: all 0.15s;
 }
 .tg-reset-btn:hover { color: var(--color-accent, #00bfb3); border-color: var(--color-accent, #00bfb3); }
+.tg-jump-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--color-accent, #00bfb3);
+  border-radius: 6px; padding: 8px 14px; color: var(--color-accent, #00bfb3);
+  font-size: 12px; font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  cursor: pointer; margin-top: 20px; transition: all 0.15s;
+}
+.tg-jump-btn:hover { background: rgba(0,191,179,0.08); }
+.tg-card-jump-badge {
+  font-size: 10px; font-style: italic; opacity: 0.6;
+  margin-top: 4px; color: var(--color-accent, #00bfb3);
+}
 .tg-copy-link-btn {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: 1px solid var(--color-border, #252a38);
@@ -583,7 +602,7 @@ const TREAGE_BODY = `
   </div>
 
   <footer>
-    <span>Treage v1.5.0</span>
+    <span>Treage v1.6.0</span>
     <span class="tg-sep">·</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="tg-sep">·</span>
@@ -785,6 +804,7 @@ function kbClearFocus() {
 /* ── Tree walk: pan to a layout node ── */
 function panToNode(d, duration) {
   if (!treeSvg || !treeZoom || !container) return;
+  if (!container.clientWidth || !container.clientHeight) return;
   const dur = duration !== undefined ? duration : 450;
   const t = d3.zoomTransform(treeSvg.node());
   const targetX = d.px;
@@ -958,6 +978,11 @@ function renderFullTree(g, layout) {
     if (isNodeNew(data)) eb.append('xhtml:span').attr('class','tg-new-badge').text('NEW');
     card.append('xhtml:div').attr('class','tg-card-title').style('color', typeCfg.titleColor).text(data.title || '');
     if (data.hint) card.append('xhtml:div').attr('class','tg-card-hint').style('color', typeCfg.hintColor).text(data.hint);
+    if (data.jumpTo) {
+      const jumpTarget = findNodeById(data.jumpTo, TREE);
+      const jumpLabel = jumpTarget ? (jumpTarget.title || data.jumpTo) : data.jumpTo;
+      card.append('xhtml:div').attr('class','tg-card-jump-badge').text('→ continues at: ' + jumpLabel);
+    }
 
     // Click any node to jump the walk directly to that node
     fo.style('cursor', 'pointer')
@@ -988,6 +1013,17 @@ function rebuildTree() {
 }
 
 /* ── Tree walk: find path from root to a given node ID ── */
+/* ── Find a node anywhere in the tree by id ── */
+function findNodeById(id, node) {
+  if (node.id === id) return node;
+  if (!node.children) return null;
+  for (const child of node.children) {
+    const result = findNodeById(id, child);
+    if (result) return result;
+  }
+  return null;
+}
+
 function findPathToNode(targetId, node, pathSoFar) {
   const current = pathSoFar.concat(node);
   if (node.id === targetId) return current;
@@ -1189,6 +1225,7 @@ function wRender() {
           iState.choices.push({ label: child.edgeLabel || child.type, node: child });
           iState.path.push(child);
           highlightActivePath();
+          writePath();
           if (treeLayout) {
             const ln = treeLayout.nodes.find(n => n.data.id === child.id);
             if (ln) panToNode(ln);
@@ -1243,6 +1280,29 @@ function wRender() {
     card.appendChild(resetBtn);
     card.appendChild(makeCopyLinkBtn());
     card.appendChild(makeCopyPathBtn());
+
+    if (currentNode.jumpTo) {
+      const jumpTarget = findNodeById(currentNode.jumpTo, TREE);
+      if (jumpTarget) {
+        card.appendChild(makeJumpBtn(jumpTarget, () => {
+          iState.choices.push({ label: '→ ' + (jumpTarget.title || jumpTarget.id), node: jumpTarget, jump: true });
+          iState.path.push(jumpTarget);
+          highlightActivePath();
+          writePath();
+          if (treeLayout) {
+            const ln = treeLayout.nodes.find(n => n.data.id === jumpTarget.id);
+            if (ln) panToNode(ln);
+          }
+          wRender();
+          iRender();
+          const panel = document.getElementById('tg-panel-walk');
+          if (panel) panel.scrollTop = panel.scrollHeight;
+        }));
+      } else {
+        console.warn(`Treage: jumpTo target "${currentNode.jumpTo}" not found on node "${currentNode.id}"`);
+      }
+    }
+
     root.appendChild(card);
   }
 
@@ -1426,6 +1486,26 @@ function iRender() {
     card.appendChild(reset);
     card.appendChild(makeCopyLinkBtn());
     card.appendChild(makeCopyPathBtn());
+
+    if (current.jumpTo) {
+      const jumpTarget = findNodeById(current.jumpTo, TREE);
+      if (jumpTarget) {
+        card.appendChild(makeJumpBtn(jumpTarget, () => {
+          iState.choices.push({ label: '→ ' + (jumpTarget.title || jumpTarget.id), node: jumpTarget, jump: true });
+          iState.path.push(jumpTarget);
+          highlightActivePath();
+          writePath();
+          if (treeLayout) {
+            const ln = treeLayout.nodes.find(n => n.data.id === jumpTarget.id);
+            if (ln) panToNode(ln);
+          }
+          wRender();
+          iRender();
+        }));
+      } else {
+        console.warn(`Treage: jumpTo target "${current.jumpTo}" not found on node "${current.id}"`);
+      }
+    }
   }
 
   root.appendChild(card);
@@ -1532,10 +1612,20 @@ function searchStep(dir) {
   searchPanTo(searchState.index);
 }
 
+/* ── jumpTo: Continue button ── */
+function makeJumpBtn(targetNode, onJump) {
+  const btn = document.createElement('button');
+  btn.className = 'tg-jump-btn';
+  btn.innerHTML = '→ Continue';
+  btn.title = 'Continue to: ' + (targetNode.title || targetNode.id);
+  btn.onclick = onJump;
+  return btn;
+}
+
 /* ── Copy node link: path serialization ── */
 function serializePath() {
   if (!iState.choices.length) return '';
-  return iState.choices.map(c => `${c.node.id}:${c.label}`).join(',');
+  return iState.choices.map(c => c.jump ? `>${c.node.id}` : `${c.node.id}:${c.label}`).join(',');
 }
 
 function writePath() {
@@ -1553,7 +1643,7 @@ function writePath() {
 function deserializePath() {
   const hash = window.location.hash;
   if (!hash || !hash.startsWith('#path=')) return;
-  const encoded = hash.slice(6);
+  const encoded = decodeURIComponent(hash.slice(6));
   if (!encoded) return;
   const steps = encoded.split(',');
   // Walk TREE to replay choices
@@ -1561,16 +1651,26 @@ function deserializePath() {
   const newPath = [current];
   const newChoices = [];
   for (const step of steps) {
-    const colonIdx = step.lastIndexOf(':');
-    if (colonIdx === -1) break;
-    const nodeId = step.slice(0, colonIdx);
-    const label  = step.slice(colonIdx + 1);
-    if (!current.children) break;
-    const child = current.children.find(c => c.id === nodeId);
-    if (!child) break;
-    newChoices.push({ label, node: child });
-    newPath.push(child);
-    current = child;
+    if (step.startsWith('>')) {
+      // Jump segment: teleport to target node by id
+      const targetId = step.slice(1);
+      const target = findNodeById(targetId, TREE);
+      if (!target) break;
+      newChoices.push({ label: '→ ' + (target.title || targetId), node: target, jump: true });
+      newPath.push(target);
+      current = target;
+    } else {
+      const colonIdx = step.lastIndexOf(':');
+      if (colonIdx === -1) break;
+      const nodeId = step.slice(0, colonIdx);
+      const label  = step.slice(colonIdx + 1);
+      if (!current.children) break;
+      const child = current.children.find(c => c.id === nodeId);
+      if (!child) break;
+      newChoices.push({ label, node: child });
+      newPath.push(child);
+      current = child;
+    }
   }
   if (newPath.length > 1) {
     iState.path    = newPath;
@@ -1617,6 +1717,8 @@ function serializePathText() {
     const label   = eyebrow ? `${eyebrow}: ${title}` : title;
     if (isOutcome) {
       lines.push(`Outcome: ${title}`);
+    } else if (choice.jump) {
+      lines.push(`↪ Jump to: ${title}`);
     } else {
       lines.push(`• ${label} → ${choice.label}`);
     }
@@ -1923,6 +2025,19 @@ function init() {
   } else {
     iReset();
   }
+
+  window.addEventListener('hashchange', () => {
+    iState.path    = [];
+    iState.choices = [];
+    deserializePath();
+    highlightActivePath();
+    if (iState.choices.length > 0) {
+      wRender();
+      iRender();
+    } else {
+      iReset();
+    }
+  });
 }
 
 /* ── SVG Export ── */
