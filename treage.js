@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.8.1 — Interactive Decision Tree Framework Engine
+   TREAGE v1.8.2 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,9 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.8.2 — fix: in-tree theme toggle hidden when running inside the
+            playground iframe; playground preview bar owns theme state.
+            postMessage treage:setTheme syncs theme without re-render.
    v1.8.1 — fix: code block toggle button clipped by overflow:hidden on
             .tg-card-code wrapper; codeCollapsedH autoSize estimate
             corrected to include margin, ellipsis, and toggle strip height.
@@ -2189,13 +2192,23 @@ function init() {
   document.head.insertAdjacentHTML('beforeend', TREAGE_STYLES);
   document.body.innerHTML = TREAGE_BODY;
 
-  // Restore saved preference
-  try {
-    if (localStorage.getItem('treage-theme') === 'light') {
-      currentTheme = 'light';
-      document.body.classList.add('tg-light');
-    }
-  } catch(e) {}
+  // When embedded in the playground iframe, hide the in-tree theme toggle —
+  // the playground preview bar owns theme state in that context.
+  const isEmbedded = window.parent !== window;
+  if (isEmbedded) {
+    const themeBtn = document.getElementById('tg-theme-toggle');
+    if (themeBtn) themeBtn.style.display = 'none';
+  }
+
+  // Restore saved preference (standalone only — embedded gets theme via body class)
+  if (!isEmbedded) {
+    try {
+      if (localStorage.getItem('treage-theme') === 'light') {
+        currentTheme = 'light';
+        document.body.classList.add('tg-light');
+      }
+    } catch(e) {}
+  }
 
   applyPalette();
 
@@ -2388,6 +2401,16 @@ function init() {
   renderFullTree(treeG, treeLayout);
   setTimeout(() => fitView(500), 100);
   window.addEventListener('resize', () => fitView(300));
+
+  /* ── Playground theme sync ── */
+  window.addEventListener('message', (event) => {
+    if (!event.data || event.data.type !== 'treage:setTheme') return;
+    const theme = event.data.theme;
+    if (theme !== 'light' && theme !== 'dark') return;
+    currentTheme = theme;
+    document.body.classList.toggle('tg-light', theme === 'light');
+    applyPalette();
+  });
 
   /* ── Playground builder focus sync ── */
   window.addEventListener('message', (event) => {

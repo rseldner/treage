@@ -263,7 +263,7 @@ footer a:hover{color:var(--accent)}
         <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
         <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
       </svg>
-      Trēage <span class="logo-badge">Playground v1.4.0</span>
+      Trēage <span class="logo-badge">Playground v1.5.0</span>
     </div>
     <div class="header-right">
       <span class="kbd">Ctrl+Enter</span>
@@ -360,13 +360,14 @@ footer a:hover{color:var(--accent)}
         <span class="preview-label">Live Preview</span>
         <span style="color:var(--dim);font-size:10px;font-family:var(--font-mono)">— auto-renders on change · 500ms debounce</span>
         <span class="preview-dims" id="preview-dims"></span>
+        <button class="btn" id="btn-preview-theme" onclick="togglePreviewTheme()" title="Toggle tree preview light/dark mode" style="margin-left:auto">☀</button>
       </div>
       <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
     </div>
   </div>
 
   <footer>
-    <span>Treage Playground v1.4.0</span>
+    <span>Treage Playground v1.5.0</span>
     <span class="footer-sep">&middot;</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="footer-sep">&middot;</span>
@@ -385,9 +386,13 @@ footer a:hover{color:var(--accent)}
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   Treage Playground v1.4.0
+   Treage Playground v1.5.0
    https://github.com/rseldner/treage
 
+   v1.5.0 — fix: tree preview theme no longer resets to dark on re-render.
+            Preview bar owns theme toggle; injects tg-light class into srcdoc.
+            In-tree toggle hidden in playground context via isEmbedded guard.
+            postMessage treage:setTheme for instant toggle without re-render.
    v1.4.0 — feat: Builder node editor fields for jumpTo, links, and code.
             jumpTo: text input + node ID dropdown (leaf nodes only).
             links: repeatable label/url pair list with add/remove controls.
@@ -419,7 +424,7 @@ footer a:hover{color:var(--accent)}
    ══════════════════════════════════════════════════════════════════════ */
 
 /* ── Version constant — update this on each treage.js release ────── */
-const TREAGE_CURRENT_VERSION = '1.8.1';
+const TREAGE_CURRENT_VERSION = '1.8.2';
 
 /* ── Default content ──────────────────────────────────────────────── */
 const DEFAULT_CONFIG = `const CONFIG = {
@@ -642,6 +647,17 @@ function applyTheme(theme) {
   }
 }
 
+function togglePreviewTheme() {
+  previewTheme = previewTheme === 'dark' ? 'light' : 'dark';
+  const btn = document.getElementById('btn-preview-theme');
+  if (btn) btn.textContent = previewTheme === 'light' ? '🌙' : '☀';
+  // postMessage to live iframe for instant update without re-render
+  const frame = document.getElementById('preview-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'treage:setTheme', theme: previewTheme }, '*');
+  }
+}
+
 /* ── Status ────────────────────────────────────────────────────────── */
 function setStatus(state, msg) {
   const dot  = document.getElementById('status-dot');
@@ -686,15 +702,17 @@ function switchTab(tab) {
 
 /* ── Preview builder ───────────────────────────────────────────────── */
 function buildPreviewHTML(configSrc, treeSrc) {
+  const bodyClass = previewTheme === 'light' ? ' class="tg-light"' : '';
   return '<!DOCTYPE html><html lang="en"><head>' +
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">' +
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"><\/script>' +
     '<script>' + configSrc + '\n' + treeSrc + '<\/script>' +
-    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.1/treage.js"><\/script>' +
-    '</head><body></body></html>';
+    '<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.2/treage.js"><\/script>' +
+    '</head><body' + bodyClass + '></body></html>';
 }
 
 let renderTimer;
+let previewTheme = 'dark'; // tracks tree preview theme independently of playground chrome theme
 function scheduleRender() {
   setStatus('loading', 'Rendering…');
   clearTimeout(renderTimer);
