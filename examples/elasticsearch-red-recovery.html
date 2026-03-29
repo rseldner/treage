@@ -297,6 +297,7 @@ const TREE = {
                   title: "Elasticsearch is retrieving shard information from one or more nodes and has not yet made an allocation decision.",
                   hint: "Wait and recheck GET /_cluster/allocation/explain — this state is normally transient. If it persists, the cause needs investigation. Follow up to determine what is blocking info retrieval.",
                   edgeLabel: "AWAITING INFO",
+                  jumpTo: "q-alloc-explain",
                   children: []
                 },
 
@@ -474,6 +475,10 @@ const TREE = {
                   title: "Allocation explain returns no clear reason and standard recovery paths are exhausted. Escalate to Elastic Support with full diagnostic output.",
                   hint: "Collect: GET /_cluster/allocation/explain, GET /_cat/shards?v, GET /_nodes/stats, and cluster logs. Open a support case with severity matching cluster impact.",
                   edgeLabel: "NO",
+                  links: [
+                    { label: "Diagnose unassigned shards", url: "https://www.elastic.co/guide/en/elasticsearch/reference/current/diagnose-unassigned-shards.html" },
+                    { label: "Open a support case", url: "https://support.elastic.co" }
+                  ],
                   children: []
                 }
               ]
