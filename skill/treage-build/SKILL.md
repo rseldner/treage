@@ -6,8 +6,8 @@ description: >
   tree, decision tree, or routing flowchart using the Treage framework.
 metadata:
   author: rseldner
-  version: 1.1.0
-  treage-engine: "1.5.0"
+  version: 1.2.0
+  treage-engine: "1.7.0"
 ---
 
 # Treage Tree Builder
@@ -115,6 +115,8 @@ Run through this checklist mentally before presenting output:
 - [ ] Outcome titles describe a concrete action or decision, not just a label
 - [ ] `hint` is used where a gate condition or scope boundary would help users
 - [ ] `eyebrow` text is consistent (e.g., "Question 1", "Question 2" or "Step 1", "Step 2")
+- [ ] Any `jumpTo` values reference IDs that actually exist in the tree, and are only set on leaf nodes
+- [ ] Any `links` entries have both `label` and `url` populated
 
 ## Output Format
 
@@ -141,4 +143,6 @@ Include a brief comment at the top of the `<script>` block noting the Treage ver
 The following engine enhancements are tracked and relevant when building trees:
 
 - [#27](https://github.com/rseldner/treage/issues/27) — `code` field for monospace blocks in nodes (workaround: put query syntax in `hint`)
-- [#28](https://github.com/rseldner/treage/issues/28) — `jumpTo` for cross-path node linking with audit trail (workaround: duplicate subtree or collapse branch into pre-flight action)
+- [#30](https://github.com/rseldner/treage/issues/30) — `jumpTo` navigation directly from diagram view click is not yet supported; Continue button only appears in the expanded outcome card
+- [#31](https://github.com/rseldner/treage/issues/31) — Builder UI has no field for `jumpTo`; add it manually in the TREE source editor
+- [#32](https://github.com/rseldner/treage/issues/32) — Builder UI has no fields for `links`; add them manually in the TREE source editor

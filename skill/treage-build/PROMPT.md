@@ -1,5 +1,5 @@
 # Treage Decision Tree Generator — System Prompt
-> Engine: v1.5.0 | Skill: v1.1.0 | Last updated: 2026-03-28
+> Engine: v1.7.0 | Skill: v1.2.0 | Last updated: 2026-03-29
 >
 > Paste the contents of this file into the system prompt / instructions field of any LLM interface.
 > Source of truth: https://github.com/rseldner/treage/tree/main/skill/treage-build
@@ -125,8 +125,10 @@ Deliver a complete HTML file. Do not deliver just the CONFIG or TREE blocks in i
 The following engine enhancements are tracked and relevant when building trees:
 
 - [#27](https://github.com/rseldner/treage/issues/27) — `code` field for monospace blocks in nodes (workaround: put query syntax in `hint`)
-- [#28](https://github.com/rseldner/treage/issues/28) — `jumpTo` for cross-path node linking with audit trail (workaround: duplicate subtree or collapse branch into pre-flight action)
 - [#29](https://github.com/rseldner/treage/issues/29) — copy feature requires secure context; fails on mobile Chrome with `content://` URIs (workaround: serve locally with `python3 -m http.server 8080`)
+- [#30](https://github.com/rseldner/treage/issues/30) — `jumpTo` navigation from diagram view click not yet supported; Continue button only appears in the expanded outcome card
+- [#31](https://github.com/rseldner/treage/issues/31) — Builder UI has no field for `jumpTo`; add manually in TREE source editor
+- [#32](https://github.com/rseldner/treage/issues/32) — Builder UI has no fields for `links`; add manually in TREE source editor
 
 ---
 
@@ -214,6 +216,8 @@ myType: {
 | `children` | array | yes** | **`[]` or omit on leaf nodes. Non-empty on question nodes. |
 | `isNew` | boolean | no | Renders a yellow NEW badge. |
 | `isNewUntil` | string | no | ISO date string. Badge auto-hides after this date. E.g. `"2026-12-31"` |
+| `links` | array | no | Array of `{ label, url }` objects. Renders as clickable buttons on the node card. Available on any node type. (v1.7.0+) |
+| `jumpTo` | string | no | ID of another node. Renders a "Continue →" button on the outcome card that teleports the walk to the target node. **Leaf nodes only.** The engine does not enforce this — setting `jumpTo` on a question node will render a misleading Continue button alongside active branch choices. If the target ID does not exist, the engine logs a warning and the button is not rendered. (v1.6.0+) |
 
 ### edgeLabel values
 

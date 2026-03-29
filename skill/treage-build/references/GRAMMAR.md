@@ -1,5 +1,5 @@
 # Treage Grammar Reference
-> Engine: v1.5.0 | Last updated: 2026-03-28
+> Engine: v1.7.0 | Last updated: 2026-03-29
 
 This document is the authoritative reference for the CONFIG and TREE object schemas.
 It is loaded into context when the Treage skill is active.
@@ -146,6 +146,8 @@ The TREE object is a single root node with nested `children` arrays.
 | `children` | array | yes** | Nested child nodes. **Must be `[]` or omitted on outcome (leaf) nodes. Must be non-empty on question nodes. |
 | `isNew` | boolean | no | Renders a yellow NEW badge next to the eyebrow. |
 | `isNewUntil` | string (ISO date) | no | Like `isNew` but auto-expires. Format: `"2025-12-31"`. If date is past, badge does not show. (v1.2.3+) |
+| `links` | array | no | Array of `{ label, url }` objects. Renders as clickable buttons. Available on any node type. (v1.7.0+) |
+| `jumpTo` | string | no | ID of another node. Renders a "Continue →" button on the outcome card that teleports the walk to the target node. **Intended for leaf nodes only.** Setting `jumpTo` on a question node is not enforced by the engine but will produce a misleading Continue button alongside active branch choices — do not do this. (v1.6.0+) |
 
 ### edgeLabel values
 
@@ -158,7 +160,43 @@ The TREE object is a single root node with nested `children` arrays.
 
 Non-binary branching is supported. A question can have 2, 3, or 4 children with labels like `"LOW"`, `"MED"`, `"HIGH"` or `"PATH A"`, `"PATH B"`, `"PATH C"`.
 
-### Tree shape rules
+### links (optional, v1.7.0+)
+
+An array of `{ label, url }` objects. Renders as clickable buttons on the node card. Available on any node type.
+
+```js
+links: [
+  { label: "KB: Red cluster recovery",  url: "https://www.elastic.co/guide/..." },
+  { label: "Runbook: shard allocation", url: "https://wiki.example.com/..." },
+]
+```
+
+In diagram view, a node with `links` shows a bottom strip indicator ("1 action" / "N actions"). First click activates the node and expands the buttons in place; click outside deactivates. The toolbar "Show links" toggle expands all link/jumpTo nodes simultaneously for scanning or screenshots.
+
+In walk/interactive view, links render inline on the active node card.
+
+### jumpTo (optional, v1.6.0+)
+
+A string referencing another node's `id`. When the walk reaches a leaf node with `jumpTo`, a "Continue →" button appears. Clicking it teleports the walk to the target node. The jump is recorded in the audit path as a distinct segment (`,>targetId`) and is included in copy path output and shareable URLs.
+
+```js
+{
+  id: "out-check-snapshots",
+  type: "action",
+  eyebrow: "Action Required",
+  title: "Check snapshot status before proceeding.",
+  hint: null,
+  edgeLabel: "PARTIAL RED",
+  jumpTo: "q-snapshot-health",
+  children: []
+}
+```
+
+If the `jumpTo` target ID does not exist in the tree, the engine logs a console warning and the button is not rendered.
+
+**Only use `jumpTo` on leaf nodes.** Setting it on a question node is not enforced but produces a misleading Continue button alongside active branch choices.
+
+
 
 1. Root node must be `type: "start"` with `id: "start"` and exactly one child.
 2. The `start` node's single child is the first question. Its `edgeLabel` is `""` or omitted.
@@ -231,6 +269,8 @@ const TREE = {
 | Copy path summary | 1.3.2 | (automatic toolbar button) |
 | Keyboard navigation | 1.4.0 | (automatic, arrow keys) |
 | Builder focus sync | 1.5.0 | (automatic, postMessage highlight) |
+| `jumpTo` — walk teleport with audit trail | 1.6.0 | `jumpTo: "nodeId"` on leaf nodes |
+| `links` — clickable action buttons on nodes | 1.7.0 | `links: [{ label, url }]` |
 
 All features listed are automatic — no TREE/CONFIG changes needed to enable them.
 
