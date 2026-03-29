@@ -263,7 +263,7 @@ footer a:hover{color:var(--accent)}
         <line x1="20" y1="19" x2="29" y2="25.5" stroke="#00bfb3" stroke-width="1.5"/>
         <circle cx="20" cy="19" r="2" fill="#00bfb3"/>
       </svg>
-      Trēage <span class="logo-badge">Playground v1.3.3</span>
+      Trēage <span class="logo-badge">Playground v1.4.0</span>
     </div>
     <div class="header-right">
       <span class="kbd">Ctrl+Enter</span>
@@ -366,7 +366,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <footer>
-    <span>Treage Playground v1.3.3</span>
+    <span>Treage Playground v1.4.0</span>
     <span class="footer-sep">&middot;</span>
     <a href="https://github.com/rseldner/treage" target="_blank" rel="noopener">github.com/rseldner/treage</a>
     <span class="footer-sep">&middot;</span>
@@ -385,9 +385,13 @@ footer a:hover{color:var(--accent)}
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   Treage Playground v1.3.3
+   Treage Playground v1.4.0
    https://github.com/rseldner/treage
 
+   v1.4.0 — feat: Builder node editor fields for jumpTo, links, and code.
+            jumpTo: text input + node ID dropdown (leaf nodes only).
+            links: repeatable label/url pair list with add/remove controls.
+            code: textarea for monospace code blocks.
    v1.3.3 — ux: Builder is now the default landing tab. CONFIG and TREE
             are visually demoted as advanced options via a separator and
             reduced opacity.
@@ -1139,10 +1143,20 @@ function serializeNode(node, indent) {
   if (node.eyebrow  !== undefined) lines.push(pad2 + 'eyebrow: '  + str(node.eyebrow)  + ',');
   lines.push(pad2 + 'title: '     + str(node.title)     + ',');
   if (node.hint     !== undefined) lines.push(pad2 + 'hint: '     + str(node.hint)     + ',');
+  if (node.code)                   lines.push(pad2 + 'code: '     + str(node.code)     + ',');
   if (node.isNew)                  lines.push(pad2 + 'isNew: '    + bool(node.isNew)   + ',');
   if (node.isNewUntil)             lines.push(pad2 + 'isNewUntil: ' + str(node.isNewUntil) + ',');
   if (node.edgeLabel !== undefined && node.edgeLabel !== null)
                                    lines.push(pad2 + 'edgeLabel: ' + str(node.edgeLabel) + ',');
+  if (node.jumpTo)                 lines.push(pad2 + 'jumpTo: '   + str(node.jumpTo)   + ',');
+  if (node.links && node.links.length > 0) {
+    lines.push(pad2 + 'links: [');
+    node.links.forEach((lk, i) => {
+      const comma = i < node.links.length - 1 ? ',' : '';
+      lines.push(pad2 + '  { label: ' + str(lk.label) + ', url: ' + str(lk.url) + ' }' + comma);
+    });
+    lines.push(pad2 + '],');
+  }
 
   const kids = node.children || [];
   if (kids.length === 0) {
@@ -1263,6 +1277,16 @@ function builderRenderAll() {
   builderRenderNode(scroll, builderTree, 0);
 }
 
+function getAllNodeIds(root, excludeId) {
+  const ids = [];
+  function walk(n) {
+    if (n.id && n.id !== excludeId) ids.push(n.id);
+    (n.children || []).forEach(walk);
+  }
+  if (root) walk(root);
+  return ids;
+}
+
 function builderRenderNode(container, node, depth) {
   const el = document.createElement('div');
   el.className = 'bnode';
@@ -1363,6 +1387,7 @@ function builderRenderNode(container, node, depth) {
     { key:'hint',        label:'Hint',         type:'textarea', full:true },
     { key:'isNew',       label:'isNew badge',  type:'checkbox', full:false },
     { key:'isNewUntil',  label:'isNewUntil',   type:'text', full:false, placeholder:'YYYY-MM-DD' },
+    { key:'code',        label:'Code',         type:'textarea', full:true, placeholder:'ES|QL, CLI, API call — multiline ok' },
   ];
 
   fieldDefs.forEach(def => {
@@ -1443,6 +1468,128 @@ function builderRenderNode(container, node, depth) {
     wrap.appendChild(input);
     body.appendChild(wrap);
   });
+
+  // ── jumpTo (leaf nodes only) ──────────────────────────────────────
+  if (!isStart && !hasChildren) {
+    const wrap = document.createElement('div');
+    wrap.className = 'bfield full';
+    const lbl = document.createElement('label');
+    lbl.textContent = 'jumpTo';
+    wrap.appendChild(lbl);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center';
+
+    const jtInput = document.createElement('input');
+    jtInput.type = 'text';
+    jtInput.value = node.jumpTo || '';
+    jtInput.placeholder = 'node id';
+    jtInput.style.flex = '1';
+
+    const jtSelect = document.createElement('select');
+    jtSelect.style.cssText = 'width:auto;flex-shrink:0';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = ''; blankOpt.textContent = '— pick id —';
+    jtSelect.appendChild(blankOpt);
+    getAllNodeIds(builderTree, node.id).forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = id;
+      if (id === node.jumpTo) opt.selected = true;
+      jtSelect.appendChild(opt);
+    });
+
+    const syncJumpTo = () => {
+      const n = findNode(builderTree, node.id);
+      if (!n) return;
+      const val = jtInput.value.trim();
+      if (val) { n.jumpTo = val; } else { delete n.jumpTo; }
+      builderFlush();
+    };
+    jtInput.addEventListener('input', syncJumpTo);
+    jtSelect.addEventListener('change', () => {
+      jtInput.value = jtSelect.value;
+      syncJumpTo();
+    });
+
+    row.appendChild(jtInput);
+    row.appendChild(jtSelect);
+    wrap.appendChild(row);
+    body.appendChild(wrap);
+  }
+
+  // ── links ─────────────────────────────────────────────────────────
+  if (!isStart) {
+    const wrap = document.createElement('div');
+    wrap.className = 'bfield full';
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Links';
+    wrap.appendChild(lbl);
+
+    const linksList = document.createElement('div');
+    linksList.style.cssText = 'display:flex;flex-direction:column;gap:5px;margin-bottom:5px';
+
+    const renderLinks = () => {
+      linksList.innerHTML = '';
+      const n = findNode(builderTree, node.id);
+      const links = (n && n.links) ? n.links : [];
+      links.forEach((lk, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:4px;align-items:center';
+
+        const labelIn = document.createElement('input');
+        labelIn.type = 'text'; labelIn.value = lk.label || '';
+        labelIn.placeholder = 'label'; labelIn.style.flex = '1';
+        labelIn.addEventListener('input', () => {
+          const nn = findNode(builderTree, node.id);
+          if (nn && nn.links && nn.links[i]) { nn.links[i].label = labelIn.value; builderFlush(); }
+        });
+
+        const urlIn = document.createElement('input');
+        urlIn.type = 'text'; urlIn.value = lk.url || '';
+        urlIn.placeholder = 'https://…'; urlIn.style.flex = '2';
+        urlIn.addEventListener('input', () => {
+          const nn = findNode(builderTree, node.id);
+          if (nn && nn.links && nn.links[i]) { nn.links[i].url = urlIn.value; builderFlush(); }
+        });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'bnode-btn del';
+        removeBtn.textContent = '✕';
+        removeBtn.style.cssText = 'flex-shrink:0;padding:3px 7px';
+        removeBtn.onclick = () => {
+          const nn = findNode(builderTree, node.id);
+          if (!nn) return;
+          nn.links.splice(i, 1);
+          if (nn.links.length === 0) delete nn.links;
+          builderFlush();
+          renderLinks();
+        };
+
+        row.appendChild(labelIn);
+        row.appendChild(urlIn);
+        row.appendChild(removeBtn);
+        linksList.appendChild(row);
+      });
+    };
+    renderLinks();
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'bnode-btn add';
+    addBtn.textContent = '+ link';
+    addBtn.style.cssText = 'align-self:flex-start;margin-top:2px';
+    addBtn.onclick = () => {
+      const n = findNode(builderTree, node.id);
+      if (!n) return;
+      if (!n.links) n.links = [];
+      n.links.push({ label: '', url: '' });
+      builderFlush();
+      renderLinks();
+    };
+
+    wrap.appendChild(linksList);
+    wrap.appendChild(addBtn);
+    body.appendChild(wrap);
+  }
 
   el.appendChild(body);
   container.appendChild(el);
