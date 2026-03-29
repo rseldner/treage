@@ -1,5 +1,5 @@
 /* ============================================================
-   TREAGE v1.8.0 — Interactive Decision Tree Framework Engine
+   TREAGE v1.8.1 — Interactive Decision Tree Framework Engine
    https://github.com/rseldner/treage
 
    Load AFTER d3 and AFTER your CONFIG + TREE definitions.
@@ -14,6 +14,9 @@
    Edit CONFIG and TREE in your own file instead.
    To upgrade: replace this file with the new version.
 
+   v1.8.1 — fix: code block toggle button clipped by overflow:hidden on
+            .tg-card-code wrapper; codeCollapsedH autoSize estimate
+            corrected to include margin, ellipsis, and toggle strip height.
    v1.8.0 — feat: code field — nodes may declare a code field (string) which
             renders as a styled monospace block. Diagram view: ≤2 lines shown
             inline; longer blocks show first 2 lines + ellipsis with a
@@ -452,7 +455,7 @@ body.tg-light .tg-icon-sun  { display: block; }
 /* ── Code blocks ── */
 .tg-card-code {
   margin-top: 6px; background: var(--color-code-bg, rgba(255,255,255,0.06));
-  border-radius: 4px; overflow: hidden;
+  border-radius: 4px;
 }
 .tg-card-code-pre {
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
@@ -835,7 +838,10 @@ function autoSize(nodeData) {
   const hl = hint ? Math.ceil(hint.length  / LAYOUT.charsPerLine) || 1 : 0;
   const codeLines = code ? code.split('\n').length : 0;
   const clCollapsed = codeLines > 0 ? Math.min(codeLines, 2) : 0; // collapsed: max 2 lines shown
-  const codeCollapsedH = clCollapsed > 0 ? (clCollapsed * 13 + (codeLines > 2 ? 22 : 10)) : 0; // pre lines + toggle strip
+  // 6px margin-top + pre lines (13px each) + ellipsis (12px, only if >2 lines) + toggle strip (26px)
+  const codeCollapsedH = clCollapsed > 0
+    ? (6 + clCollapsed * 13 + (codeLines > 2 ? 12 + 26 : 0))
+    : 0;
   const contentH = 20 + (tl * LAYOUT.lineHeight) + (hl * (LAYOUT.lineHeight - 2)) + (hl > 0 ? 8 : 0) + codeCollapsedH;
   const baseH = Math.max(LAYOUT.minHeight, contentH + LAYOUT.paddingV);
   if (expandedNodeIds.has(nodeData.id) && nodeHasActions(nodeData)) {
