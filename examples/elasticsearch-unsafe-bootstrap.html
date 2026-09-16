@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unsafe Bootstrap &amp; Detach Cluster</title>
+
+<!--
+  Treage v1.8.2, generated 2026-09-16
+  Decision tree for when elasticsearch-node unsafe-bootstrap and
+  detach-cluster are the right last resort for a lost master-eligible
+  quorum. Sourced from:
+  https://www.elastic.co/docs/reference/elasticsearch/command-line-tools/node-tool
+-->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<script>
+
+const CONFIG = {
+
+  title:    "Unsafe Bootstrap & Detach Cluster",
+  subtitle: "When elasticsearch-node unsafe-bootstrap and detach-cluster are the right last resort for a lost master-eligible quorum.",
+  icon: `<svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+    <path d="M20 4 L37 34 L3 34 Z" stroke="#ff8a3d" stroke-width="1.6" stroke-linejoin="round"/>
+    <line x1="20" y1="15" x2="20" y2="24" stroke="#ff8a3d" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="20" cy="29" r="1.5" fill="#ff8a3d"/>
+  </svg>`,
+
+  palette: {
+    bg:          "#0d0f14",
+    surface:     "#13161a",
+    border:      "#242832",
+    text:        "#e8eaf0",
+    muted:       "#7a8099",
+    dim:         "#454b60",
+    accent:      "#ff8a3d",
+    edgeYes:     "#3dd68c",
+    edgeNo:      "#ff6b6b",
+    edgeDefault: "#3a4158",
+    gridLine:    "rgba(255,255,255,0.018)",
+    headerBg:    "rgba(13,15,20,0.95)",
+  },
+
+  paletteLight: {
+    bg:          "#f5f5f7",
+    surface:     "#ffffff",
+    border:      "#dde0e8",
+    text:        "#1a1d26",
+    muted:       "#6b7080",
+    dim:         "#9298aa",
+    accent:      "#d9691f",
+    edgeYes:     "#1fa860",
+    edgeNo:      "#d94f4f",
+    edgeDefault: "#b0b6c6",
+    gridLine:    "rgba(0,0,0,0.045)",
+    headerBg:    "rgba(245,245,247,0.97)",
+  },
+
+  fonts: {
+    body: "'IBM Plex Sans', sans-serif",
+    mono: "'IBM Plex Mono', monospace",
+  },
+
+  nodeTypes: {
+
+    /* Keep start and question, do not rename or remove */
+    start: {
+      legendLabel: null, accent: "#ff8a3d",
+      dark:  { bg: "linear-gradient(135deg,#ff8a3d,#e8630f)", border: "none", borderLeft: null, titleColor: "#0d0f14" },
+      light: { bg: "linear-gradient(135deg,#ff8a3d,#d9691f)", border: "none", borderLeft: null, titleColor: "#ffffff" },
+    },
+    question: {
+      legendLabel: null, accent: "#3a4158",
+      dark:  { bg: "#13161a", border: "1px solid #242832", borderLeft: "3px solid #242832", titleColor: "#e8eaf0", hintColor: "#7a8099", eyebrowColor: "#454b60" },
+      light: { bg: "#ffffff", border: "1px solid #dde0e8", borderLeft: "3px solid #c4c9d8", titleColor: "#1a1d26", hintColor: "#6b7080", eyebrowColor: "#9298aa" },
+    },
+
+    /* Blue, redirect to a different elasticsearch-node mode entirely */
+    flag: {
+      label: "Wrong Tool", legendLabel: "Wrong Tool", accent: "#4ea8de",
+      dark:  { bg: "rgba(78,168,222,0.06)",  border: "1px solid rgba(78,168,222,0.3)",  borderLeft: "3px solid rgba(78,168,222,0.55)", titleColor: "rgba(78,168,222,0.9)",  hintColor: "rgba(78,168,222,0.5)",  eyebrowColor: "#4ea8de" },
+      light: { bg: "rgba(30,120,180,0.05)",  border: "1px solid rgba(30,120,180,0.3)",  borderLeft: "3px solid rgba(30,120,180,0.55)", titleColor: "#1a5f8a",               hintColor: "#2a7ab0",               eyebrowColor: "#1a5f8a" },
+    },
+
+    /* Amber, confirm before you can safely rule out an alternative */
+    review: {
+      label: "Investigate First", legendLabel: "Investigate First", accent: "#fec514",
+      dark:  { bg: "rgba(254,197,20,0.06)",  border: "1px solid rgba(254,197,20,0.3)",  borderLeft: "3px solid rgba(254,197,20,0.55)", titleColor: "rgba(254,197,20,0.9)",  hintColor: "rgba(254,197,20,0.5)",  eyebrowColor: "#fec514" },
+      light: { bg: "rgba(190,140,0,0.05)",   border: "1px solid rgba(180,130,0,0.3)",   borderLeft: "3px solid rgba(160,110,0,0.55)",  titleColor: "#7a5500",               hintColor: "#9a7200",               eyebrowColor: "#7a5500" },
+    },
+
+    /* Teal, a safe recoverable alternative to the node tool */
+    action: {
+      label: "Safer Alternative", legendLabel: "Safer Alternative", accent: "#00bfb3",
+      dark:  { bg: "rgba(0,191,179,0.06)",   border: "1px solid rgba(0,191,179,0.3)",   borderLeft: "3px solid rgba(0,191,179,0.55)", titleColor: "rgba(0,191,179,0.9)",   hintColor: "rgba(0,191,179,0.5)",   eyebrowColor: "#00bfb3" },
+      light: { bg: "rgba(0,140,135,0.05)",   border: "1px solid rgba(0,140,135,0.35)",  borderLeft: "3px solid rgba(0,140,135,0.6)",  titleColor: "#006e6a",               hintColor: "#009e99",               eyebrowColor: "#006e6a" },
+    },
+
+    /* Gray, dead end, nothing left for this tool to recover */
+    stop: {
+      label: "No Recovery Path", legendLabel: "No Recovery Path", accent: "#7a8099",
+      dark:  { bg: "rgba(122,128,153,0.05)", border: "1px solid rgba(122,128,153,0.25)", borderLeft: "3px solid rgba(122,128,153,0.4)", titleColor: "rgba(122,128,153,0.85)", hintColor: "rgba(122,128,153,0.5)", eyebrowColor: "#7a8099" },
+      light: { bg: "rgba(100,110,140,0.04)", border: "1px solid rgba(100,110,140,0.25)", borderLeft: "3px solid rgba(100,110,140,0.4)", titleColor: "#505870",                hintColor: "#7a8099",               eyebrowColor: "#606880" },
+    },
+
+    /* Red, the actual irreversible operation this tree exists to gate */
+    lastresort: {
+      label: "Last Resort", legendLabel: "Last Resort", accent: "#ff6b6b",
+      dark:  { bg: "rgba(255,107,107,0.07)", border: "1px solid rgba(255,107,107,0.35)", borderLeft: "3px solid rgba(255,107,107,0.65)", titleColor: "rgba(255,107,107,0.95)", hintColor: "rgba(255,107,107,0.55)", eyebrowColor: "#ff6b6b" },
+      light: { bg: "rgba(200,50,50,0.06)",   border: "1px solid rgba(200,50,50,0.35)",   borderLeft: "3px solid rgba(200,50,50,0.6)",   titleColor: "#922020",                hintColor: "#bb3030",               eyebrowColor: "#922020" },
+    },
+  },
+};
+
+
+const TREE = {
+  id: "start", type: "start", title: "Lost Master Quorum",
+  children: [
+    {
+      id: "q-scope",
+      type: "question",
+      eyebrow: "Step 1: Scope Check",
+      title: "Is master election failing because master-eligible nodes are lost or unreachable, not because the cluster is blocked by bad persistent settings, bad index settings, or broken custom metadata?",
+      hint: "Check cluster logs and GET /_cluster/health first. If nodes are up and reachable but the cluster state itself won't load or apply, that's a different failure mode than this tree covers.",
+      edgeLabel: "",
+      children: [
+        {
+          id: "out-wrong-tool",
+          type: "flag",
+          eyebrow: "Wrong Tool for This Symptom",
+          title: "This isn't a lost-quorum scenario, so unsafe-bootstrap and detach-cluster are not the right tools here.",
+          hint: "Incompatible persistent settings blocking cluster formation: use elasticsearch-node remove-settings. Bad index settings: remove-index-settings. Broken custom metadata, often from a plugin: remove-customs. A node that won't start because of a version mismatch: override-version. All four run against a stopped node and target a specific symptom instead of rebuilding the cluster from scratch.",
+          edgeLabel: "NO",
+          children: []
+        },
+        {
+          id: "q-network",
+          type: "question",
+          eyebrow: "Step 2: Rule Out Networking",
+          title: "Have you confirmed this is not a networking or split-brain problem, meaning the master-eligible nodes are truly gone rather than just unreachable from where you're checking?",
+          hint: "Check from more than one vantage point, confirm the hosts themselves (not just the Elasticsearch process) are unreachable, and check for recent network changes, firewall rules, or DNS issues. A resolved partition restores quorum with zero data loss; unsafe-bootstrap does not.",
+          edgeLabel: "YES",
+          children: [
+            {
+              id: "out-check-network",
+              type: "review",
+              eyebrow: "Investigate Before Touching Anything",
+              title: "Rule out a network or connectivity problem before running any elasticsearch-node command.",
+              hint: "unsafe-bootstrap and detach-cluster are both one-way operations. If there's any chance this is a transient partition or split-brain, confirm it first. The safe outcome, the network heals and the cluster reforms on its own, costs you nothing; the unsafe outcome is irreversible.",
+              edgeLabel: "NO",
+              children: []
+            },
+            {
+              id: "q-restart",
+              type: "question",
+              eyebrow: "Step 3: Node Recovery",
+              title: "Can any of the lost master-eligible nodes be restarted, or can their data path be moved to healthy hardware and started there?",
+              hint: "This covers hardware that's actually repairable, or a data directory that survived even though the host didn't. It does not cover servers that were reimaged; that on-disk state is gone.",
+              edgeLabel: "YES",
+              children: [
+                {
+                  id: "out-restart",
+                  type: "action",
+                  eyebrow: "Restore Quorum Normally",
+                  title: "Restart the node, or move its data path to healthy hardware and start it there.",
+                  hint: "This restores quorum through the normal discovery process with none of the arbitrary data loss risk that unsafe-bootstrap and detach-cluster both carry. Confirm the node rejoins and the cluster returns to green or yellow before considering this closed.",
+                  edgeLabel: "YES",
+                  children: []
+                },
+                {
+                  id: "q-snapshot",
+                  type: "question",
+                  eyebrow: "Step 4: Snapshot Check",
+                  title: "Do you have a recent, usable snapshot you could restore into a brand-new cluster?",
+                  hint: "Treat this as sequential, not parallel, with the node tool. Running unsafe-bootstrap first doesn't save you the snapshot restore if you still need it afterward, and the two results can't be merged, since cluster metadata from two different clusters can't be safely combined. If you want data more recent than the snapshot, copy the surviving node's data directory first and evaluate it separately, rather than chaining one recovery into the other.",
+                  edgeLabel: "NO",
+                  children: [
+                    {
+                      id: "out-snapshot",
+                      type: "action",
+                      eyebrow: "Restore From Snapshot Instead",
+                      title: "Build a new cluster from the most recent snapshot and re-import anything ingested since it was taken.",
+                      hint: "This is the preferred recovery path whenever a usable snapshot exists. It touches none of the original broken nodes, so it doesn't foreclose a later attempt at unsafe-bootstrap if you decide you also want to try recovering more recent data from a surviving node's local copy.",
+                      edgeLabel: "YES",
+                      children: []
+                    },
+                    {
+                      id: "q-survivors",
+                      type: "question",
+                      eyebrow: "Step 5: Surviving Masters",
+                      title: "Does at least one master-eligible node still survive, even if you can't reach a majority of them?",
+                      hint: "unsafe-bootstrap needs one surviving master-eligible node holding a local copy of the cluster metadata. If none survive, that path is closed, but detach-cluster alone may still recover data as dangling indices.",
+                      edgeLabel: "NO",
+                      children: [
+                        {
+                          id: "q-stopped",
+                          type: "question",
+                          eyebrow: "Step 6: Stop All Nodes",
+                          title: "Has every remaining node in the cluster been stopped?",
+                          hint: "elasticsearch-node unsafe-bootstrap requires the target node to be stopped, and every other surviving master-eligible node should also be stopped before you run it, even though the tool itself won't enforce that for you.",
+                          edgeLabel: "YES",
+                          children: [
+                            {
+                              id: "out-stop-first",
+                              type: "action",
+                              eyebrow: "Stop Everything First",
+                              title: "Stop every remaining node in the cluster before running elasticsearch-node unsafe-bootstrap.",
+                              hint: "Come back to this decision once every node, not just the one you intend to bootstrap, is fully stopped.",
+                              edgeLabel: "NO",
+                              children: []
+                            },
+                            {
+                              id: "q-freshest",
+                              type: "question",
+                              eyebrow: "Step 7: Pick the Freshest Node",
+                              title: "If more than one master-eligible node survived, have you identified which one holds the freshest cluster state?",
+                              hint: "Run elasticsearch-node unsafe-bootstrap on each candidate and answer n at the confirmation prompt to see its reported (term, version) pair without committing to anything. Pick the highest term; if two candidates share a term, pick the higher version.",
+                              edgeLabel: "YES",
+                              children: [
+                                {
+                                  id: "out-compare",
+                                  type: "action",
+                                  eyebrow: "Compare Candidates First",
+                                  title: "Dry-run elasticsearch-node unsafe-bootstrap on every surviving master-eligible node before committing to one.",
+                                  hint: "Answer n every time until every candidate has been checked. Higher term wins outright; a tied term falls back to higher version. Once you know which node to use, come back and proceed on that node only.",
+                                  code: "node_1$ ./bin/elasticsearch-node unsafe-bootstrap\n\nCurrent node cluster state (term, version) pair is (4, 12)\n\nDo you want to proceed?\nConfirm [y/N] n\n\nnode_2$ ./bin/elasticsearch-node unsafe-bootstrap\n\nCurrent node cluster state (term, version) pair is (5, 3)\n\nDo you want to proceed?\nConfirm [y/N] n",
+                                  edgeLabel: "NO",
+                                  children: []
+                                },
+                                {
+                                  id: "out-proceed-bootstrap",
+                                  type: "lastresort",
+                                  eyebrow: "Last Resort: Bootstrap and Detach",
+                                  title: "Every safer alternative has been exhausted. Run unsafe-bootstrap on the freshest surviving master-eligible node, then detach-cluster on everything else.",
+                                  hint: "This can cause arbitrary data loss. The freshest node may not hold the latest cluster metadata, and out-of-date metadata can make some or all indices unusable. Only proceed with this understood and accepted.",
+                                  code: "# 1. On the chosen node, run:\n./bin/elasticsearch-node unsafe-bootstrap\n# Confirm the prompt (y), then verify:\n#   \"Master node was successfully bootstrapped\"\n\n# 2. Start that node and verify it is elected master.\n\n# 3. On every OTHER surviving node, run:\n./bin/elasticsearch-node detach-cluster\n# Confirm the prompt (y), then verify:\n#   \"Node was successfully detached from the cluster\"\n\n# 4. Start all other nodes and verify each one joins.\n\n# 5. Investigate the data in the cluster for loss.\n#    Check GET /_dangling for any importable shards.",
+                                  links: [
+                                    { label: "elasticsearch-node reference", url: "https://www.elastic.co/docs/reference/elasticsearch/command-line-tools/node-tool" },
+                                    { label: "Dangling indices API", url: "https://www.elastic.co/docs/api/doc/elasticsearch/group/endpoint-indices" }
+                                  ],
+                                  edgeLabel: "YES",
+                                  children: []
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          id: "q-data-nodes",
+                          type: "question",
+                          eyebrow: "Step 6: Surviving Data Nodes",
+                          title: "Do any data nodes with surviving shard data still exist?",
+                          hint: "With zero master-eligible nodes left, cluster metadata is completely lost. Individual data nodes still hold index metadata for their own shards though, which can sometimes be recovered as dangling indices in a brand-new cluster.",
+                          edgeLabel: "NO",
+                          children: [
+                            {
+                              id: "out-total-loss",
+                              type: "stop",
+                              eyebrow: "No Recovery Through This Tool",
+                              title: "There's no surviving master-eligible node and no surviving data node, so elasticsearch-node has nothing local left to recover.",
+                              hint: "If a snapshot or off-cluster backup exists anywhere, that's the only remaining path. Otherwise this data is gone.",
+                              edgeLabel: "NO",
+                              children: []
+                            },
+                            {
+                              id: "out-dangling",
+                              type: "lastresort",
+                              eyebrow: "Last Resort: Detach Into a New Cluster",
+                              title: "Build a brand-new cluster, then use detach-cluster, without unsafe-bootstrap, to recover surviving shards as dangling indices.",
+                              hint: "This still carries a real risk of data loss. Data nodes may not hold the most recent index metadata and have no information about which shard copy was actually in sync, so a stale copy can be selected as primary and some shards may be incompatible with the imported mapping.",
+                              code: "# 1. Stand up a brand-new cluster (fresh master-eligible\n#    nodes) and verify it is healthy.\n\n# 2. Stop all remaining data nodes.\n\n# 3. On EACH data node, run:\n./bin/elasticsearch-node detach-cluster\n# Confirm the prompt (y), then verify:\n#   \"Node was successfully detached from the cluster\"\n\n# 4. Point each data node at the new cluster's discovery\n#    settings, start it, and verify it joins.\n\n# 5. Use the Dangling Indices API to list, import, or\n#    delete recovered shards.",
+                              links: [
+                                { label: "elasticsearch-node reference", url: "https://www.elastic.co/docs/reference/elasticsearch/command-line-tools/node-tool" },
+                                { label: "Dangling indices", url: "https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/local-gateway#dangling-indices" }
+                              ],
+                              edgeLabel: "YES",
+                              children: []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/gh/rseldner/treage@1.8.2/treage.js"></script>
+
+</body>
+</html>
