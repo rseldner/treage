@@ -6,6 +6,7 @@ Live examples built with [Treage](https://github.com/rseldner/treage).
 |---------|-----------|
 | Elasticsearch Red Cluster Recovery | [Open →](https://rseldner.github.io/treage/examples/elasticsearch-red-recovery.html) |
 | Is Unbalanced Storage Expected? | [Open →](https://rseldner.github.io/treage/examples/elasticsearch-unbalanced-storage.html) |
+| Unsafe Bootstrap &amp; Detach Cluster | [Open →](https://rseldner.github.io/treage/examples/elasticsearch-unsafe-bootstrap.html) |
 | **Treage Release Runbook**<br><sub>Step-by-step release checklist for publishing a new Treage version.</sub> | [Open →](https://rseldner.github.io/treage/examples/treage-release-runbook.html) |
 
 ---
